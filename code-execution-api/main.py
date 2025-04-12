@@ -9,6 +9,7 @@ import shutil
 import logging
 from typing import List, Optional
 import json
+from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -18,6 +19,15 @@ logging.basicConfig(
 logger = logging.getLogger("code_execution_api")
 
 app = FastAPI(title="Code Execution API")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Base directory for all assignment environments
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "environments")

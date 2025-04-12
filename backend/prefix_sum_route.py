@@ -11,6 +11,8 @@ router = APIRouter()
 async def get_prefix_sum_assignment():
     """Return the code template for the Prefix Sum problem"""
     code = '''
+from typing import List
+
 class Solution:
     def prefixSum(self, nums: List[int]) -> List[int]:
         """
@@ -18,10 +20,13 @@ class Solution:
         is the sum of all elements in the original list from index 0 to i.
         """
         <editable>
-        # The prefix sum logic will be implemented here by the student
-        pass
+        prefix = []
+        total = 0
+        for num in nums:
+            total += num
+            prefix.append(total)
+        return prefix
         </editable>
-
 # Driver code for testing the solution
 if __name__ == "__main__":
     # Test cases

@@ -205,12 +205,13 @@ export function CodeEditor({ code, onSubmit }: CodeEditorProps) {
       const finalCode = getCurrentCode();
       
       // Execute the code via the API
-      const response = await fetch("http://localhost:8081/execute", {
+      const response = await fetch("http://localhost:8000/execute/code", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
+          assignment_name: "sample_assignment", 
           language: "python", 
           code: finalCode 
         }),
@@ -221,12 +222,12 @@ export function CodeEditor({ code, onSubmit }: CodeEditorProps) {
       // Format the output nicely
       let formattedOutput = "";
       
-      if (data.stdout) {
-        formattedOutput += data.stdout;
+      if (data.output) {
+        formattedOutput += data.output;
       }
       
-      if (data.stderr) {
-        formattedOutput += "\n\n" + data.stderr;
+      if (data.error) {
+        formattedOutput += "\n\n" + data.error;
       }
       
       setOutput(formattedOutput || "No output");
