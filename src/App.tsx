@@ -17,6 +17,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Assignment = lazy(() => import("./pages/Assignment"));
 const PythonAssignments = lazy(() => import("./pages/PythonAssignments"));
 const AssignmentPage = lazy(() => import("./pages/AssignmentPage"));
+const BatchDetails = lazy(() => import("./pages/BatchDetails"));
 
 // Auth pages
 const Login = lazy(() => import("./pages/Login"));
@@ -78,6 +79,8 @@ const App = () => (
                   path="/assignment/prefix-sum-problem" 
                   element={<Navigate to="/python-assignment/prefix-sum-problem" replace />} 
                 />
+                
+                <Route path="/batches/:batchId" element={<BatchDetails />} />
                 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

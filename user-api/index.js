@@ -666,6 +666,100 @@ app.get('/api/batches/enrolled', authenticateToken, async (req, res) => {
   }
 });
 
+// Get a specific batch by ID with assignments
+app.get('/api/batches/:id', authenticateToken, async (req, res) => {
+  try {
+    const batch = await Batch.findById(req.params.id)
+      .populate({
+        path: 'class',
+        select: 'name subject description',
+        populate: {
+          path: 'teacher',
+          select: 'username email'
+        }
+      })
+      .populate({
+        path: 'students',
+        select: 'username email'
+      });
+    
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Check permissions
+    if (req.user.role === 'teacher') {
+      // For teachers, check if they own the class this batch belongs to
+      const classItem = await Class.findById(batch.class._id);
+      if (classItem.teacher.toString() !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    } else if (req.user.role === 'student') {
+      // For students, check if they are enrolled in this batch
+      if (!batch.students.some(student => student._id.toString() === req.user.id)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
+
+    // Get assignments for this batch's class
+    const assignments = await Assignment.find({ class: batch.class._id });
+    
+    // If student, get their progress for each assignment
+    let enrichedAssignments = [...assignments];
+    
+    if (req.user.role === 'student') {
+      const studentAssignments = await StudentAssignment.find({
+        student: req.user.id,
+        assignment: { $in: assignments.map(a => a._id) }
+      });
+      
+      // Create a map for quick lookup
+      const progressMap = {};
+      studentAssignments.forEach(sa => {
+        progressMap[sa.assignment.toString()] = {
+          progress: sa.progress,
+          status: sa.status,
+          submitted: sa.status === 'completed'
+        };
+      });
+      
+      // Enrich assignments with student progress
+      enrichedAssignments = assignments.map(assignment => {
+        const assignmentObj = assignment.toObject();
+        const progress = progressMap[assignment._id.toString()] || {
+          progress: 0,
+          status: 'assigned',
+          submitted: false
+        };
+        
+        return {
+          ...assignmentObj,
+          ...progress
+        };
+      });
+    }
+
+    // Return batch with assignments and formatted student list
+    const batchData = batch.toObject();
+    
+    // Format student list to include full names
+    const studentsList = batchData.students.map(student => ({
+      id: student._id,
+      name: student.username,
+      email: student.email
+    }));
+
+    res.status(200).json({
+      ...batchData,
+      students: studentsList,
+      assignments: enrichedAssignments
+    });
+  } catch (error) {
+    console.error('Fetch batch error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Create an assignment for a class (teachers only)
 app.post('/api/assignments', authenticateToken, async (req, res) => {
   try {
