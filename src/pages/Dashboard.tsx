@@ -4,11 +4,15 @@ import { AssignmentList } from "@/components/AssignmentList";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Code, Layers, BookOpen, User, ArrowRight, BookOpenCheck, Users, Sparkles } from "lucide-react";
+import { Code, Layers, BookOpen, User, ArrowRight, BookOpenCheck, Users, Sparkles, Plus } from "lucide-react";
 import { AuthNav } from "@/components/AuthNav";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
 
 // This component will handle the typing animation
 function AnimatedGreeting({ displayText }) {
@@ -49,6 +53,9 @@ export default function Dashboard() {
   const [enrolledBatches, setEnrolledBatches] = useState([]);
   const [studentAssignments, setStudentAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [enrollmentCode, setEnrollmentCode] = useState("");
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
 
   useEffect(() => {
     // Set greeting based on time of day
@@ -135,6 +142,58 @@ export default function Dashboard() {
     assignment => !assignment.submitted
   ).length;
 
+  // Add function to handle batch enrollment
+  const handleEnrollBatch = async () => {
+    if (!enrollmentCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an enrollment code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsEnrolling(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/batches/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ enrollmentCode })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Success!",
+          description: data.message || "Successfully enrolled in the batch",
+        });
+        // Close dialog and refresh data
+        setEnrollmentDialogOpen(false);
+        setEnrollmentCode("");
+        setRefreshKey(Date.now()); // This will trigger a re-fetch
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to enroll in batch",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error enrolling in batch:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b border-border">
@@ -147,9 +206,6 @@ export default function Dashboard() {
             <nav className="hidden md:flex items-center gap-6">
               <Link to="/" className="text-sm font-medium animate-hover hover:text-primary">
                 Dashboard
-              </Link>
-              <Link to="/courses" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                Courses
               </Link>
               <Link to="/progress" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
                 My Progress
@@ -188,17 +244,61 @@ export default function Dashboard() {
 
         <section className="container py-8">
           <Tabs defaultValue="batches" className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-              <TabsTrigger value="batches">My Batches</TabsTrigger>
-              <TabsTrigger value="assignments">
-                Assignments
-                {pendingAssignments > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {pendingAssignments}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex justify-between items-center mb-6">
+              <TabsList className="grid max-w-md grid-cols-2">
+                <TabsTrigger value="batches">My Batches</TabsTrigger>
+                <TabsTrigger value="assignments">
+                  Assignments
+                  {pendingAssignments > 0 && (
+                    <Badge variant="destructive" className="ml-2">
+                      {pendingAssignments}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* Add Join Batch Dialog */}
+              <Dialog open={enrollmentDialogOpen} onOpenChange={setEnrollmentDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" /> Join Batch
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Join a Batch</DialogTitle>
+                    <DialogDescription>
+                      Enter the enrollment code provided by your instructor to join a batch.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="enrollmentCode">Enrollment Code</Label>
+                      <Input
+                        id="enrollmentCode"
+                        placeholder="Enter code (e.g., ABC123)"
+                        value={enrollmentCode}
+                        onChange={(e) => setEnrollmentCode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => setEnrollmentDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleEnrollBatch} 
+                      disabled={isEnrolling}
+                    >
+                      {isEnrolling ? "Joining..." : "Join Batch"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
             
             <TabsContent value="batches" className="pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
