@@ -990,6 +990,54 @@ app.post('/api/assignments/:id/submit', authenticateToken, async (req, res) => {
   }
 });
 
+// Student can opt out (leave) a batch
+app.post('/api/batches/:id/leave', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Only students can leave batches' });
+    }
+
+    const batchId = req.params.id;
+
+    // Find the batch
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Check if student is enrolled in the batch
+    if (!batch.students.includes(req.user.id)) {
+      return res.status(400).json({ message: 'You are not enrolled in this batch' });
+    }
+
+    // Remove student from the batch
+    batch.students = batch.students.filter(
+      studentId => studentId.toString() !== req.user.id
+    );
+    await batch.save();
+
+    // Find and delete all student assignments for this class
+    const classId = batch.class;
+    const assignments = await Assignment.find({ class: classId });
+    const assignmentIds = assignments.map(assignment => assignment._id);
+
+    // Delete student's assignments for this class
+    await StudentAssignment.deleteMany({
+      student: req.user.id,
+      assignment: { $in: assignmentIds }
+    });
+
+    res.status(200).json({
+      message: 'Successfully left the batch',
+      batchId: batch._id
+    });
+  } catch (error) {
+    console.error('Leave batch error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Welcome to the User API');
 });

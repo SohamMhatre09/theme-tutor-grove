@@ -13,6 +13,25 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+// Add import for AlertDialog components
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+// Add import for DropdownMenu components
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
 
 // This component will handle the typing animation
 function AnimatedGreeting({ displayText }) {
@@ -56,6 +75,9 @@ export default function Dashboard() {
   const [enrollmentCode, setEnrollmentCode] = useState("");
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [enrollmentDialogOpen, setEnrollmentDialogOpen] = useState(false);
+  const [isLeavingBatch, setIsLeavingBatch] = useState(false);
+  const [selectedBatchToLeave, setSelectedBatchToLeave] = useState(null);
+  const [leaveBatchDialogOpen, setLeaveBatchDialogOpen] = useState(false);
 
   useEffect(() => {
     // Set greeting based on time of day
@@ -194,6 +216,49 @@ export default function Dashboard() {
     }
   };
 
+  // Add function to handle leaving a batch
+  const handleLeaveBatch = async () => {
+    if (!selectedBatchToLeave) return;
+    
+    setIsLeavingBatch(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/batches/${selectedBatchToLeave}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Success!",
+          description: data.message || "Successfully left the batch",
+        });
+        // Close dialog and refresh data
+        setLeaveBatchDialogOpen(false);
+        setSelectedBatchToLeave(null);
+        setRefreshKey(Date.now()); // This will trigger a re-fetch
+      } else {
+        toast({
+          title: "Error",
+          description: data.message || "Failed to leave batch",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error leaving batch:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLeavingBatch(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="border-b border-border">
@@ -320,15 +385,38 @@ export default function Dashboard() {
                             {batch.students.length} students enrolled
                           </span>
                         </div>
+                        {/* Replace the current button section in the CardContent with this dropdown menu */}
                         <div className="flex justify-between items-center">
                           <Badge variant="outline" className="mb-1">
                             {batch.schedule || "Flexible Schedule"}
                           </Badge>
-                          <Button size="sm" asChild variant="secondary" className="gap-1">
-                            <Link to={`/batches/${batch._id}`}>
-                              View Details <ArrowRight className="h-3 w-3" />
-                            </Link>
-                          </Button>
+                          <div className="flex gap-2">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="h-4 w-4" />
+                                  <span className="sr-only">More options</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem 
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => {
+                                    setSelectedBatchToLeave(batch._id);
+                                    setLeaveBatchDialogOpen(true);
+                                  }}
+                                >
+                                  Opt out from batch
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            
+                            <Button size="sm" asChild variant="secondary" className="gap-1">
+                              <Link to={`/batches/${batch._id}`}>
+                                View Details <ArrowRight className="h-3 w-3" />
+                              </Link>
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -412,6 +500,29 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      {/* Add this AlertDialog component at the end of your JSX, before closing the main div */}
+      <AlertDialog open={leaveBatchDialogOpen} onOpenChange={setLeaveBatchDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to leave this batch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Leaving the batch will remove you from the
+              class and delete all your assignments and progress related to this batch.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleLeaveBatch}
+              disabled={isLeavingBatch}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isLeavingBatch ? "Leaving..." : "Yes, leave batch"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
