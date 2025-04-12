@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Code, Layers, BookOpen, User, ArrowRight } from "lucide-react";
+import { AuthNav } from "@/components/AuthNav";
 
 export default function Dashboard() {
   return (
@@ -32,9 +33,7 @@ export default function Dashboard() {
             </nav>
             <Separator orientation="vertical" className="h-6 hidden md:block" />
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <User className="h-5 w-5" />
-            </Button>
+            <AuthNav /> {/* Replace the User button with AuthNav */}
           </div>
         </div>
       </header>
