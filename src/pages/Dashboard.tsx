@@ -91,7 +91,7 @@ export default function Dashboard() {
     // Fetch enrolled batches
     const fetchEnrolledBatches = async () => {
       try {
-        const response = await fetch('/api/batches/enrolled', {
+        const response = await fetch('http://localhost:5000/api/batches/enrolled', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -109,7 +109,7 @@ export default function Dashboard() {
     // Fetch student assignments
     const fetchStudentAssignments = async () => {
       try {
-        const response = await fetch('/api/student/assignments', {
+        const response = await fetch('http://localhost:5000/api/student/assignments', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

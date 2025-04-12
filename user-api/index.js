@@ -896,6 +896,9 @@ app.post('/api/assignments/:id/submit', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.send('Welcome to the User API');
+});
 // Server setup
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
