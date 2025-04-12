@@ -47,7 +47,7 @@ export default function Register() {
         title: "Success",
         description: "Your account has been created successfully",
       });
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Error",

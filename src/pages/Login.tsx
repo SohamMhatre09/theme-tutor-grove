@@ -36,7 +36,7 @@ export default function Login() {
         title: "Success",
         description: "You have been logged in successfully",
       });
-      navigate("/");
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Error",

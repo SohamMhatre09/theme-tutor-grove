@@ -9,6 +9,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
 
+// Landing page
+const Landing = lazy(() => import("./pages/Landing"));
+
 // Existing pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Assignment = lazy(() => import("./pages/Assignment"));
@@ -34,6 +37,9 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
               <Routes>
+                {/* Landing page as default route for non-authenticated users */}
+                <Route path="/" element={<Landing />} />
+                
                 {/* Public auth routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -41,6 +47,11 @@ const App = () => (
                 <Route path="/reset-password" element={<ResetPassword />} />
                 
                 {/* Protected routes */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
@@ -60,7 +71,6 @@ const App = () => (
                 } />
                 
                 {/* Semi-protected routes */}
-                <Route path="/" element={<Dashboard />} />
                 <Route path="/python-assignments" element={<PythonAssignments />} />
                 
                 {/* Redirect for compatibility with current URL */}
