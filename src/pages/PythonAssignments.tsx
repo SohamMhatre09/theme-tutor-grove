@@ -1,12 +1,36 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { AssignmentList } from "@/components/AssignmentList";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
-import { Code, Layers, BookOpen, User, ArrowRight } from "lucide-react";
+import { Code, User } from "lucide-react";
 
-export default function Dashboard() {
+interface Assignment {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+export default function PythonAssignments() {
+  const navigate = useNavigate();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  useEffect(() => {
+    // In a real application, these would come from an API
+    setAssignments([
+      {
+        id: "prefix-sum-problem",
+        title: "Prefix Sum Problem",
+        description: "Implement a function to calculate the prefix sum of a list of integers."
+      }
+    ]);
+  }, []);
+
+  const handleExecute = (assignmentId: string) => {
+    navigate(`/python-assignment/${assignmentId}`);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border">
@@ -17,17 +41,11 @@ export default function Dashboard() {
           </Link>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/" className="text-sm font-medium animate-hover hover:text-primary">
+              <Link to="/" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
                 Dashboard
               </Link>
-              <Link to="/python-assignments" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
+              <Link to="/python-assignments" className="text-sm font-medium animate-hover hover:text-primary">
                 Python Assignments
-              </Link>
-              <Link to="/courses" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                Courses
-              </Link>
-              <Link to="/progress" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                My Progress
               </Link>
             </nav>
             <Separator orientation="vertical" className="h-6 hidden md:block" />
@@ -44,26 +62,30 @@ export default function Dashboard() {
           <div className="container">
             <div className="max-w-3xl">
               <h1 className="text-4xl font-bold tracking-tight mb-4">
-                Continue your learning journey
+                Python Assignments
               </h1>
               <p className="text-xl text-muted-foreground">
-                Master coding with hands-on practice through interactive lessons and exercises
+                Practice your Python skills with these interactive assignments
               </p>
             </div>
           </div>
         </section>
 
         <section className="container py-12">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-semibold">Browse Assignments</h2>
-            <Button asChild variant="outline" size="sm" className="gap-1">
-              <Link to="/python-assignments">
-                View Python Assignments
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+          <h2 className="text-2xl font-semibold mb-8">Available Assignments</h2>
+          <div className="space-y-4">
+            {assignments.map((assignment) => (
+              <Card key={assignment.id} className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>{assignment.title}</CardTitle>
+                  <Button onClick={() => handleExecute(assignment.id)}>Execute</Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">{assignment.description}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <AssignmentList />
         </section>
       </main>
 
@@ -80,4 +102,4 @@ export default function Dashboard() {
       </footer>
     </div>
   );
-}
+} 

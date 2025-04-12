@@ -1,4 +1,3 @@
-
 export interface Test {
   name: string;
   test: string;
@@ -33,59 +32,6 @@ export interface AssignmentsData {
 // Mock data based on the provided JSON structure
 export const assignmentsData: AssignmentsData = {
   assignments: [
-    {
-      id: "javascript-basics-variables",
-      title: "JavaScript Basics: Variables",
-      module: "JavaScript Fundamentals",
-      difficulty: "Beginner",
-      estimatedTime: "15 minutes",
-      prerequisites: ["Introduction to Programming"],
-      steps: [
-        {
-          id: "step-1",
-          title: "Understanding Variables",
-          content: "Variables are containers for storing data values. In JavaScript, you declare a variable using the `let`, `const`, or `var` keyword.\n\n- `let` is used when a variable's value might change\n- `const` is used for values that won't change (constants)\n- `var` is the older way to declare variables (pre-ES6)",
-          example: "// Examples of variable declarations\nlet age = 25;\nconst PI = 3.14159;\nvar name = 'John';",
-          hint: "Think of variables like labeled boxes that hold different types of data."
-        },
-        {
-          id: "step-2",
-          title: "Variable Assignment",
-          content: "Once you declare a variable, you can assign and reassign values to it (unless it's a constant).",
-          example: "let score = 0; // Initial value\nscore = 100; // New value assigned\n\n// This would cause an error\n// const MAX_SCORE = 100;\n// MAX_SCORE = 200; // Error! Can't reassign constants",
-          hint: "Remember that `const` variables cannot be reassigned after declaration."
-        },
-        {
-          id: "step-3",
-          title: "Practice: Create Variables",
-          content: "Now it's your turn! Create three variables:\n1. A `const` called `MAX_USERS` set to 50\n2. A `let` variable called `currentUsers` set to 34\n3. A `let` variable called `availableSpots` that calculates the difference between `MAX_USERS` and `currentUsers`",
-          starterCode: "// Declare your variables below\n\n\n// Don't modify this line\nconsole.log(`Available spots: ${availableSpots}`);",
-          solution: "// Declare your variables below\nconst MAX_USERS = 50;\nlet currentUsers = 34;\nlet availableSpots = MAX_USERS - currentUsers;\n\n// Don't modify this line\nconsole.log(`Available spots: ${availableSpots}`);",
-          tests: [
-            {
-              name: "MAX_USERS is declared as constant",
-              test: "typeof MAX_USERS !== 'undefined' && (function() { try { MAX_USERS = 100; return false; } catch(e) { return true; } })()",
-              hint: "Make sure you declare MAX_USERS using the const keyword."
-            },
-            {
-              name: "MAX_USERS has the correct value",
-              test: "MAX_USERS === 50",
-              hint: "MAX_USERS should be set to exactly 50."
-            },
-            {
-              name: "currentUsers is declared with let",
-              test: "typeof currentUsers !== 'undefined'",
-              hint: "You need to declare the currentUsers variable."
-            },
-            {
-              name: "availableSpots calculation is correct",
-              test: "availableSpots === 16",
-              hint: "Make sure availableSpots equals MAX_USERS minus currentUsers."
-            }
-          ]
-        }
-      ]
-    },
     {
       id: "python-data-structures-lists",
       title: "Python Data Structures: Lists",
@@ -136,6 +82,23 @@ export const assignmentsData: AssignmentsData = {
               hint: "Make sure you use the len() function to count the students."
             }
           ]
+        }
+      ]
+    },
+    {
+      id: "prefix-sum-problem",
+      title: "Prefix Sum Problem",
+      module: "Python Assignments",
+      difficulty: "Beginner",
+      estimatedTime: "15 minutes",
+      prerequisites: ["Python Basics"],
+      steps: [
+        {
+          id: "step-1",
+          title: "Prefix Sum Problem",
+          content: "In this assignment, you'll implement a function to calculate the prefix sum of a list of integers. A prefix sum is a new list where each element at index i is the sum of all elements in the original list from index 0 to i.",
+          example: "Input: [1, 2, 3, 4]\nOutput: [1, 3, 6, 10]\n\nExplanation:\n- First element: 1\n- Second element: 1 + 2 = 3\n- Third element: 1 + 2 + 3 = 6\n- Fourth element: 1 + 2 + 3 + 4 = 10",
+          hint: "Think about how to use the previous sum when calculating the next element."
         }
       ]
     }
@@ -250,13 +213,13 @@ export const markStepCompleted = (assignmentId: string, stepId: string): void =>
   saveUserProgress(progress);
 };
 
-// Get modules from assignments
+// Get all module names
 export const getModules = (): string[] => {
-  const modules = new Set<string>();
+  const moduleSet = new Set<string>();
   assignmentsData.assignments.forEach((assignment) => {
-    modules.add(assignment.module);
+    moduleSet.add(assignment.module);
   });
-  return Array.from(modules);
+  return Array.from(moduleSet);
 };
 
 // Get assignments by module
