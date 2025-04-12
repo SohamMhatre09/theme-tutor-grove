@@ -105,7 +105,7 @@ export function AssignmentSidebar({
   onModuleSelect
 }: AssignmentSidebarProps) {
   return (
-    <div className="h-full flex flex-col overflow-y-auto">
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="p-4 border-b sticky top-0 bg-background z-10">
         <h2 className="text-2xl font-bold">{title}</h2>
         <p className="text-sm text-muted-foreground mt-2">{description}</p>
@@ -126,4 +126,4 @@ export function AssignmentSidebar({
       </div>
     </div>
   );
-} 
+}

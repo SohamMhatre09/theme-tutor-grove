@@ -115,4 +115,4 @@ export function OutputPanel({ output, isExecuting, expectedOutput, onSuccess }: 
       </Card>
     </div>
   );
-} 
+}
