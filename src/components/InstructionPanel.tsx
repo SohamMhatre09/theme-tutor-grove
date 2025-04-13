@@ -1,16 +1,13 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Step } from "@/lib/assignments";
 import { StepNavigation } from "@/components/StepNavigation";
-import { Lightbulb, Copy, Check } from "lucide-react";
+import { Lightbulb, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Assignment } from "@/lib/assignments";
 import { useToast } from "@/components/ui/use-toast";
 
 interface InstructionPanelProps {
-  assignment: Assignment;
+  assignment: any;
   currentStepIndex: number;
   onStepChange: (stepIndex: number) => void;
 }
@@ -23,15 +20,35 @@ export function InstructionPanel({
   const { toast } = useToast();
   const [showHint, setShowHint] = useState(false);
   const [copied, setCopied] = useState(false);
-  const currentStep = assignment.steps[currentStepIndex];
+  
+  const currentModule = assignment.modules[currentStepIndex];
+  const totalModules = assignment.modules.length;
+  const isFirstModule = currentStepIndex === 0;
+  const isLastModule = currentStepIndex === totalModules - 1;
+
+  const handlePrevious = () => {
+    if (!isFirstModule) {
+      onStepChange(currentStepIndex - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (!isLastModule) {
+      onStepChange(currentStepIndex + 1);
+    }
+  };
+
+  // The error is here - assignment.steps doesn't exist
+  // Instead, use the currentModule which is from assignment.modules[currentStepIndex]
+  const currentStep = currentModule;
 
   const toggleHint = () => {
     setShowHint(!showHint);
   };
 
   const copyExample = async () => {
-    if (currentStep.example) {
-      await navigator.clipboard.writeText(currentStep.example);
+    if (currentStep.codeTemplate) {
+      await navigator.clipboard.writeText(currentStep.codeTemplate);
       setCopied(true);
       toast({
         title: "Copied to clipboard",
@@ -87,15 +104,15 @@ export function InstructionPanel({
       <div className="p-4 border-b border-border">
         <h1 className="text-xl font-semibold mb-1">{currentStep.title}</h1>
         <p className="text-sm text-muted-foreground">
-          {assignment.title} · {assignment.module}
+          {assignment.title}
         </p>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          {renderContent(currentStep.content)}
+          {renderContent(currentStep.learningText || "")}
         </div>
 
-        {currentStep.example && (
+        {currentStep.codeTemplate && (
           <Card className="relative overflow-hidden">
             <div className="absolute top-2 right-2 z-10">
               <Button
@@ -112,12 +129,12 @@ export function InstructionPanel({
               </Button>
             </div>
             <pre className="bg-editor-background text-editor-foreground p-4 rounded-md code-font text-sm overflow-x-auto">
-              <code>{currentStep.example}</code>
+              <code>{currentStep.codeTemplate}</code>
             </pre>
           </Card>
         )}
 
-        {currentStep.hint && (
+        {currentStep.hints && currentStep.hints.length > 0 && (
           <div className="space-y-2">
             <Button
               variant="outline"
@@ -134,23 +151,43 @@ export function InstructionPanel({
                   showHint ? "text-amber-400" : "text-muted-foreground"
                 )}
               />
-              {showHint ? "Hide Hint" : "Show Hint"}
+              {showHint ? "Hide Hints" : "Show Hints"}
             </Button>
-            {showHint && (
+            {showHint && currentStep.hints && (
               <Card className="p-4 bg-muted/50 border-primary/20 animate-scale-in">
-                <p className="text-sm">{currentStep.hint}</p>
+                <ul className="text-sm list-disc pl-5 space-y-2">
+                  {currentStep.hints.map((hint, index) => (
+                    <li key={index}>{hint}</li>
+                  ))}
+                </ul>
               </Card>
             )}
           </div>
         )}
       </div>
 
-      <div className="p-4">
-        <StepNavigation
-          assignment={assignment}
-          currentStepIndex={currentStepIndex}
-          onStepChange={onStepChange}
-        />
+      <div className="p-4 border-t flex justify-between items-center">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrevious}
+          disabled={isFirstModule}
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Previous
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          {currentStepIndex + 1} / {totalModules}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNext}
+          disabled={isLastModule}
+        >
+          Next
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
       </div>
     </div>
   );

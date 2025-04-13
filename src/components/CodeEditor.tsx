@@ -9,15 +9,18 @@ interface ModuleCode {
   code: string;
 }
 
+// Update the CodeEditorProps interface to match your module structure
 interface CodeEditorProps {
   module: {
     id: number;
     title: string;
     codeTemplate: string;
+    learningText: string;
+    hints: string[];
     expectedOutput: string;
   };
   onSubmit: (code: string, moduleId: number) => void;
-  onRun: (code: string, moduleId: number) => Promise<void>;
+  onRun: (code: string, moduleId: number) => void;
   isExecuting: boolean;
   assignmentName?: string;
 }
@@ -446,15 +449,17 @@ export function CodeEditor({
         </div>
       </div>
       
-      <div className="flex-1 overflow-auto">
-        <div className="font-mono text-sm bg-muted h-full overflow-auto">
+      {/* Fix: Remove the nested scrolling containers that are causing double scrollbars */}
+      <div className="flex-1 relative">
+        {/* Change this container to not have its own scrollbar */}
+        <div className="font-mono text-sm bg-muted w-full absolute inset-0 overflow-auto">
           {sections.map((section, idx) => (
             <div 
               key={idx} 
               className={`${section.editable ? 'border-l-4 border-primary' : ''}`}
             >
               {section.editable ? (
-                <div className="bg-background relative">
+                <div className="bg-background">
                   <Editor
                     height={`${editorHeights[`section-${idx}`] || 180}px`}
                     defaultLanguage="python"
@@ -466,6 +471,8 @@ export function CodeEditor({
                       domReadOnly: false,
                       padding: { top: 8, bottom: 8 },
                       lineNumbersMinChars: 3,
+                      // Adjust scrollbar settings to prevent nested scrollbars
+                      scrollbar: { vertical: 'visible', horizontal: 'visible' },
                       lineNumbers: (lineNumber) => {
                         return String(lineNumber + section.startLineNumber - 1);
                       }
@@ -489,7 +496,8 @@ export function CodeEditor({
                       lineDecorationsWidth: 0,
                       lineNumbersMinChars: 3,
                       padding: { top: 8, bottom: 8 },
-                      scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+                      // Adjust scrollbar settings to prevent nested scrollbars
+                      scrollbar: { vertical: 'visible', horizontal: 'visible' },
                       lineNumbers: (lineNumber) => {
                         return String(lineNumber + section.startLineNumber - 1);
                       }

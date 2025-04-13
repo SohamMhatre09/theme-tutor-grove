@@ -1,20 +1,21 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   getAssignmentById, 
   getUserCode, 
-  saveUserCode 
+  saveUserCode,
+  markStepCompleted
 } from "@/lib/assignments";
 import { BreadcrumbNav } from "@/components/BreadcrumbNav";
 import { InstructionPanel } from "@/components/InstructionPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { CodeOutput } from "@/components/CodeOutput";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Separator } from "@/components/ui/separator";
+import { ResizableLayout } from "@/components/ResizableLayout";
 import { ArrowLeft, LayoutPanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { OutputPanel } from "@/components/OutputPanel";
 
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();
@@ -26,67 +27,123 @@ export default function Assignment() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [showPanels, setShowPanels] = useState(true);
+  const [output, setOutput] = useState("");
 
   useEffect(() => {
     if (id) {
-      const assignmentData = getAssignmentById(id);
-      if (assignmentData) {
-        setAssignment(assignmentData);
-        // Load saved code for the first step if available
-        const savedCode = getUserCode(id, assignmentData.steps[0].id);
-        if (savedCode) {
-          setCode(savedCode);
-        } else {
-          setCode(assignmentData.steps[0].starterCode || "");
-        }
-      } else {
-        setError("Assignment not found");
-      }
+      // Fetch the assignment data
+      fetch(`http://localhost:5000/api/assignments/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data && data._id) {
+            // The data is the assignment object directly, not nested under "assignment"
+            setAssignment(data);
+            // Initialize with first module's code
+            if (data.modules && data.modules.length > 0) {
+              setCode(data.modules[0].codeTemplate || "");
+            }
+          } else {
+            setError("Assignment not found");
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching assignment:", err);
+          setError("Failed to load assignment");
+        });
     }
   }, [id]);
 
-  useEffect(() => {
-    if (assignment && currentStepIndex < assignment.steps.length) {
-      const stepId = assignment.steps[currentStepIndex].id;
-      const savedCode = getUserCode(id, stepId);
+  const handleModuleChange = (moduleIndex) => {
+    if (assignment && assignment.modules && assignment.modules[moduleIndex]) {
+      // Save current code before changing modules
+      saveUserCode(id, assignment.modules[currentStepIndex].id, code);
+      
+      setCurrentStepIndex(moduleIndex);
+      
+      // Load code for the new module
+      const savedCode = getUserCode(id, assignment.modules[moduleIndex].id);
       if (savedCode) {
         setCode(savedCode);
       } else {
-        setCode(assignment.steps[currentStepIndex].starterCode || "");
+        setCode(assignment.modules[moduleIndex].codeTemplate || "");
       }
+      
+      // Clear output when switching modules
+      setOutput("");
     }
-  }, [assignment, currentStepIndex, id]);
-
-  const handleStepChange = (stepIndex: number) => {
-    // Save current code before changing steps
-    if (assignment) {
-      saveUserCode(id, assignment.steps[currentStepIndex].id, code);
-    }
-    setCurrentStepIndex(stepIndex);
   };
 
-  const handleCodeChange = (newCode: string) => {
+  const handleCodeChange = (newCode) => {
     setCode(newCode);
-    // Auto-save code changes
+    // Auto-save code
     if (assignment) {
-      saveUserCode(id, assignment.steps[currentStepIndex].id, newCode);
+      saveUserCode(id, assignment.modules[currentStepIndex].id, newCode);
     }
   };
 
-  const handleRunCode = (codeToRun: string) => {
+  const handleRunCode = async () => {
+    if (!assignment) return;
+    
     setRunning(true);
-    // The actual running happens in the CodeOutput component
-    setTimeout(() => setRunning(false), 100);
+    setOutput("Running code...");
+    
+    try {
+      // Execute the code via your API
+      const response = await fetch("http://localhost:8000/execute/code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ 
+          assignment_name: id,
+          language: "python", 
+          code: code
+        }),
+      });
+      
+      const data = await response.json();
+      
+      // Format the output
+      let formattedOutput = "";
+      
+      if (data.output) {
+        formattedOutput += data.output;
+      }
+      
+      if (data.error || data.detail) {
+        formattedOutput += "\n\n" + (data.error || data.detail);
+      }
+      
+      setOutput(formattedOutput || "No output");
+      
+      // Check if output matches expected output
+      const currentModule = assignment.modules[currentStepIndex];
+      if (currentModule.expectedOutput && formattedOutput.trim() === currentModule.expectedOutput.trim()) {
+        markStepCompleted(id, currentModule.id);
+        toast({
+          title: "Success!",
+          description: "Your solution is correct. Great job!",
+        });
+      }
+    } catch (error) {
+      console.error("Error executing code:", error);
+      setOutput(`Error executing code: ${error.message}`);
+    } finally {
+      setRunning(false);
+    }
   };
 
   const handleResetCode = () => {
     if (assignment) {
-      const starterCode = assignment.steps[currentStepIndex].starterCode || "";
-      setCode(starterCode);
-      saveUserCode(id, assignment.steps[currentStepIndex].id, starterCode);
+      const templateCode = assignment.modules[currentStepIndex].codeTemplate || "";
+      setCode(templateCode);
       toast({
         title: "Code reset",
-        description: "Your code has been reset to the starter code",
+        description: "Your code has been reset to the template",
       });
     }
   };
@@ -100,7 +157,7 @@ export default function Assignment() {
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">{error}</h1>
-          <Button onClick={() => navigate("/")}>Go Back to Dashboard</Button>
+          <Button onClick={() => navigate("/")}>Go Back</Button>
         </div>
       </div>
     );
@@ -113,6 +170,9 @@ export default function Assignment() {
       </div>
     );
   }
+
+  // Get the current module
+  const currentModule = assignment.modules[currentStepIndex];
 
   return (
     <div className="h-screen flex flex-col">
@@ -130,8 +190,8 @@ export default function Assignment() {
             <BreadcrumbNav
               items={[
                 { label: "Assignments", href: "/" },
-                { label: assignment.module, href: "/" },
                 { label: assignment.title },
+                { label: currentModule.title },
               ]}
             />
           </div>
@@ -151,38 +211,41 @@ export default function Assignment() {
       </header>
 
       <main className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3">
-          {showPanels && (
-            <section className="border-r border-border h-full overflow-hidden">
+        <ResizableLayout
+          leftContent={
+            showPanels && (
               <InstructionPanel
                 assignment={assignment}
                 currentStepIndex={currentStepIndex}
-                onStepChange={handleStepChange}
+                onStepChange={handleModuleChange}
               />
-            </section>
-          )}
-          
-          <section className={showPanels ? "col-span-1 md:col-span-1 lg:col-span-1" : "col-span-1 md:col-span-3 lg:col-span-3"}>
+            )
+          }
+          centerContent={
             <CodeEditor
-              step={assignment.steps[currentStepIndex]}
-              savedCode={code}
-              onCodeChange={handleCodeChange}
-              onRunCode={handleRunCode}
-              onResetCode={handleResetCode}
+              module={currentModule}
+              onSubmit={handleRunCode}
+              onRun={handleRunCode}
+              isExecuting={running}
+              assignmentName={assignment.title}
             />
-          </section>
-
-          {showPanels && (
-            <section className="border-l border-border h-full overflow-hidden">
-              <CodeOutput
-                assignmentId={id}
-                step={assignment.steps[currentStepIndex]}
-                code={code}
-                isRunning={running}
+          }
+          rightContent={
+            showPanels && (
+              <OutputPanel
+                output={output}
+                isExecuting={running}
+                expectedOutput={currentModule.expectedOutput}
+                onSuccess={() => {
+                  // Mark module as completed when output matches
+                  markStepCompleted(id, currentModule.id);
+                }}
               />
-            </section>
-          )}
-        </div>
+            )
+          }
+          showLeft={showPanels}
+          showRight={showPanels}
+        />
       </main>
     </div>
   );

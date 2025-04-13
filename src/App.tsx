@@ -71,6 +71,12 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 
+                <Route path="/assignments/:id" element={
+                  <ProtectedRoute>
+                    <Assignment />
+                  </ProtectedRoute>
+                } />
+                
                 {/* Semi-protected routes */}
                 <Route path="/python-assignments" element={<PythonAssignments />} />
                 
