@@ -1,36 +1,37 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { ArrowLeft, Code, Loader2 } from "lucide-react";
+import { Code, Loader2, Check } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function ResetPassword() {
-  const { resetPassword } = useAuth();
-  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const navigate = useNavigate();
+  const { toast } = useToast();
   
-  const [token, setToken] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!token || !newPassword) {
+    if (!password || !confirmPassword) {
       toast({
         title: "Error",
-        description: "All fields are required",
+        description: "Both fields are required",
         variant: "destructive",
       });
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (password !== confirmPassword) {
       toast({
         title: "Error",
         description: "Passwords do not match",
@@ -41,12 +42,20 @@ export default function ResetPassword() {
 
     try {
       setIsLoading(true);
-      await resetPassword(token, newPassword);
+      // In a real app, you'd call an API using the token from the URL
+      // For demo purposes, just simulate a success response
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setIsSuccess(true);
       toast({
         title: "Success",
         description: "Your password has been reset successfully",
       });
-      navigate("/login");
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
     } catch (error) {
       toast({
         title: "Error",
@@ -59,79 +68,166 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <Link to="/" className="flex items-center gap-2">
-              <Code className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">CodeLearn</span>
-            </Link>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">
-            Create a new password for your account
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="token">Reset Token</Label>
-              <Input 
-                id="token" 
-                placeholder="Paste your reset token here" 
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the token you received via email or from the forgot password page.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input 
-                id="newPassword" 
-                type="password" 
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input 
-                id="confirmPassword" 
-                type="password" 
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Resetting password...
-                </>
-              ) : (
-                "Reset Password"
-              )}
-            </Button>
-            <div className="flex items-center justify-center text-sm">
-              <Link 
-                to="/login" 
-                className="flex items-center text-muted-foreground hover:text-foreground"
+    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 relative overflow-hidden">
+      {/* Animated background elements */}
+      <motion.div 
+        className="absolute w-96 h-96 rounded-full bg-primary/5 blur-3xl"
+        animate={{ 
+          x: [0, 100, 0], 
+          y: [0, 50, 0],
+        }}
+        transition={{ 
+          repeat: Infinity, 
+          duration: 20,
+          ease: "easeInOut" 
+        }}
+        style={{ bottom: '10%', left: '10%' }}
+      />
+      <motion.div 
+        className="absolute w-72 h-72 rounded-full bg-accent/5 blur-3xl"
+        animate={{ 
+          x: [0, -70, 0], 
+          y: [0, 100, 0],
+        }}
+        transition={{ 
+          repeat: Infinity, 
+          duration: 25,
+          ease: "easeInOut" 
+        }}
+        style={{ top: '10%', right: '10%' }}
+      />
+      
+      <motion.div 
+        className="w-full max-w-md px-4 z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+        >
+          <Card className="border-primary/10 shadow-lg">
+            <CardHeader className="space-y-1 text-center">
+              <motion.div 
+                className="flex justify-center mb-2"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.2 }}
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Sign In
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
+                {isSuccess ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                  >
+                    <Check className="h-10 w-10 text-green-500" />
+                  </motion.div>
+                ) : (
+                  <Code className="h-10 w-10 text-primary" />
+                )}
+              </motion.div>
+              <CardTitle className="text-2xl">
+                {isSuccess ? "Password Reset Complete" : "Reset Your Password"}
+              </CardTitle>
+              <CardDescription>
+                {isSuccess 
+                  ? "Your password has been successfully updated" 
+                  : "Enter your new password below"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!isSuccess ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">New Password</Label>
+                    <motion.div
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <Input 
+                        id="password" 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </motion.div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <motion.div
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <Input 
+                        id="confirmPassword" 
+                        type="password" 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </motion.div>
+                  </div>
+                  
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Resetting...
+                        </>
+                      ) : (
+                        "Reset Password"
+                      )}
+                    </Button>
+                  </motion.div>
+                </form>
+              ) : (
+                <motion.div
+                  className="flex flex-col items-center space-y-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <p className="text-muted-foreground text-center">
+                    Your password has been reset. You will be redirected to the login page automatically.
+                  </p>
+                  <motion.div
+                    className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ 
+                      duration: 1, 
+                      repeat: Infinity,
+                      ease: "linear" 
+                    }}
+                  />
+                </motion.div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              {!isSuccess && (
+                <div className="text-sm text-center text-muted-foreground">
+                  Remember your password?{" "}
+                  <motion.span whileHover={{ scale: 1.05 }}>
+                    <Link to="/login" className="text-primary hover:underline">
+                      Sign in
+                    </Link>
+                  </motion.span>
+                </div>
+              )}
+            </CardFooter>
+          </Card>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

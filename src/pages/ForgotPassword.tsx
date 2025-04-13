@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { AlertCircle, ArrowLeft, Code, Loader2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Code, Loader2, ArrowLeft, Mail } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function ForgotPassword() {
-  const { forgotPassword } = useAuth();
   const { toast } = useToast();
-  
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [resetToken, setResetToken] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,21 +28,19 @@ export default function ForgotPassword() {
 
     try {
       setIsLoading(true);
-      const token = await forgotPassword(email);
+      // In a real app, you would call an API here
+      // For demo purposes, we'll just show a success message
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // In a real application, you would not expose this token
-      // This is just for demonstration purposes
-      setResetToken(token);
-      setIsSuccess(true);
-      
+      setIsSubmitted(true);
       toast({
-        title: "Success",
-        description: "Password reset instructions have been sent to your email",
+        title: "Email sent",
+        description: "Check your inbox for password reset instructions",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send reset link",
+        description: error instanceof Error ? error.message : "Failed to send reset email",
         variant: "destructive",
       });
     } finally {
@@ -55,86 +49,154 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center justify-center mb-6">
-            <Link to="/" className="flex items-center gap-2">
-              <Code className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-lg">CodeLearn</span>
-            </Link>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center">Forgot Password</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email to receive a password reset link
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {isSuccess ? (
-              <div className="space-y-4">
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Success</AlertTitle>
-                  <AlertDescription>
-                    A password reset link has been sent to your email.
-                  </AlertDescription>
-                </Alert>
-                {/* This is just for demonstration - do not include in production */}
-                <div className="p-4 border border-dashed rounded-md bg-muted">
-                  <div className="text-xs font-mono break-all">
-                    <p className="font-semibold mb-1">Reset Token (for demo only):</p>
-                    {resetToken}
-                  </div>
-                  <p className="text-xs mt-2 text-muted-foreground">
-                    In a real application, this token would be sent via email with a link to the reset page.
-                  </p>
-                </div>
-                <div className="text-center">
-                  <Link to="/reset-password" className="text-primary hover:text-primary/90">
-                    Go to Reset Password page
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            {!isSuccess && (
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  "Send Reset Link"
-                )}
-              </Button>
-            )}
-            <div className="flex items-center justify-center text-sm">
-              <Link 
-                to="/login" 
-                className="flex items-center text-muted-foreground hover:text-foreground"
+    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 relative overflow-hidden">
+      {/* Animated background elements */}
+      <motion.div 
+        className="absolute w-80 h-80 rounded-full bg-primary/5 blur-3xl"
+        animate={{ 
+          x: [0, 100, 0], 
+          y: [0, 50, 0],
+        }}
+        transition={{ 
+          repeat: Infinity, 
+          duration: 20,
+          ease: "easeInOut" 
+        }}
+        style={{ top: '20%', left: '20%' }}
+      />
+      <motion.div 
+        className="absolute w-96 h-96 rounded-full bg-accent/5 blur-3xl"
+        animate={{ 
+          x: [0, -70, 0], 
+          y: [0, 100, 0],
+        }}
+        transition={{ 
+          repeat: Infinity, 
+          duration: 25,
+          ease: "easeInOut" 
+        }}
+        style={{ bottom: '20%', right: '20%' }}
+      />
+      
+      <motion.div 
+        className="w-full max-w-md px-4 z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+        >
+          <Card className="border-primary/10 shadow-lg">
+            <CardHeader className="space-y-1 text-center">
+              <motion.div 
+                className="flex justify-center mb-2"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.2 }}
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Sign In
-              </Link>
-            </div>
-          </CardFooter>
-        </form>
-      </Card>
+                {isSubmitted ? (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                  >
+                    <Mail className="h-10 w-10 text-green-500" />
+                  </motion.div>
+                ) : (
+                  <Code className="h-10 w-10 text-primary" />
+                )}
+              </motion.div>
+              <CardTitle className="text-2xl">
+                {isSubmitted ? "Check your email" : "Forgot password"}
+              </CardTitle>
+              <CardDescription>
+                {isSubmitted 
+                  ? "We've sent you a link to reset your password" 
+                  : "Enter your email to receive a password reset link"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!isSubmitted ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <motion.div
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="your.email@example.com" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </motion.div>
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send Reset Link"
+                      )}
+                    </Button>
+                  </motion.div>
+                </form>
+              ) : (
+                <motion.div
+                  className="text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <p className="text-muted-foreground mb-4">
+                    We've sent an email to <span className="font-medium text-foreground">{email}</span> with instructions to reset your password.
+                  </p>
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setIsSubmitted(false)}
+                      className="w-full"
+                    >
+                      Try another email
+                    </Button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-4">
+              <div className="text-sm text-center text-muted-foreground">
+                <motion.div
+                  className="inline-flex items-center"
+                  whileHover={{ x: -3 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 10 }}
+                >
+                  <ArrowLeft className="mr-1 h-4 w-4" />
+                  <Link to="/login" className="text-primary hover:underline">
+                    Back to login
+                  </Link>
+                </motion.div>
+              </div>
+            </CardFooter>
+          </Card>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

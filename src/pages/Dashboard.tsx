@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { AssignmentList } from "@/components/AssignmentList";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -32,8 +32,10 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { MoreVertical } from "lucide-react";
+// Add framer-motion for animations
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 
-// This component will handle the typing animation
+// Enhanced animated greeting component with particle effects
 function AnimatedGreeting({ displayText }) {
   const [typingComplete, setTypingComplete] = useState(false);
   const [textIndex, setTextIndex] = useState(0);
@@ -49,7 +51,7 @@ function AnimatedGreeting({ displayText }) {
     if (textIndex < displayText.length && !typingComplete) {
       const typingTimer = setTimeout(() => {
         setTextIndex(prevIndex => prevIndex + 1);
-      }, 20); // Faster typing speed (30ms instead of 50ms)
+      }, 20);
       
       return () => clearTimeout(typingTimer);
     } else if (textIndex >= displayText.length) {
@@ -58,17 +60,85 @@ function AnimatedGreeting({ displayText }) {
   }, [textIndex, displayText, typingComplete]);
   
   return (
-    <h1 className="text-3xl font-bold tracking-tight">
+    <motion.h1 
+      className="text-3xl font-bold tracking-tight relative"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       {displayText.substring(0, textIndex)}
-    </h1>
+      {/* Add cursor effect */}
+      {!typingComplete && (
+        <motion.span 
+          className="inline-block w-[2px] h-[1.2em] bg-primary ml-1 align-middle"
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 0.8, repeat: Infinity }}
+        />
+      )}
+      {typingComplete && (
+        <motion.span 
+          className="absolute -right-8 top-0 text-primary"
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 10, delay: 0.2 }}
+        >
+          ✨
+        </motion.span>
+      )}
+    </motion.h1>
   );
 }
+
+// New component for floating particles around important elements
+function ParticleEffect({ className }) {
+  return (
+    <div className={`absolute pointer-events-none ${className}`}>
+      {[...Array(6)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full bg-primary/20 w-1.5 h-1.5"
+          initial={{ 
+            x: Math.random() * 40 - 20, 
+            y: Math.random() * 40 - 20, 
+            opacity: 0 
+          }}
+          animate={{ 
+            x: Math.random() * 80 - 40,
+            y: Math.random() * 80 - 40,
+            opacity: [0, 0.8, 0]
+          }}
+          transition={{ 
+            duration: 2 + Math.random() * 2,
+            repeat: Infinity,
+            repeatType: "reverse",
+            delay: Math.random() * 2
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Card entrance animation
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({ 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      delay: i * 0.1,
+      duration: 0.5,
+      type: "spring",
+      damping: 12
+    }
+  })
+};
 
 export default function Dashboard() {
   const [greeting, setGreeting] = useState("");
   const [motivationalMsg, setMotivationalMsg] = useState("");
   const [displayText, setDisplayText] = useState("");
-  const [refreshKey, setRefreshKey] = useState(Date.now()); // Add a key that changes on refresh
+  const [refreshKey, setRefreshKey] = useState(Date.now());
   const [enrolledBatches, setEnrolledBatches] = useState([]);
   const [studentAssignments, setStudentAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,6 +148,17 @@ export default function Dashboard() {
   const [isLeavingBatch, setIsLeavingBatch] = useState(false);
   const [selectedBatchToLeave, setSelectedBatchToLeave] = useState(null);
   const [leaveBatchDialogOpen, setLeaveBatchDialogOpen] = useState(false);
+  
+  // Ref for scroll animations
+  const scrollRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: scrollRef,
+    offset: ["start start", "end start"]
+  });
+  
+  // Transform values for scroll-based animations
+  const headerOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
+  const headerScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.98]);
 
   useEffect(() => {
     // Set greeting based on time of day
@@ -260,39 +341,80 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b border-border">
+    <div className="min-h-screen flex flex-col bg-background" ref={scrollRef}>
+      <motion.header 
+        className="border-b border-border sticky top-0 z-50 backdrop-blur-sm"
+        style={{ opacity: headerOpacity, scale: headerScale }}
+      >
         <div className="container h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <Code className="h-6 w-6 text-primary" />
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Code className="h-6 w-6 text-primary" />
+            </motion.div>
             <span className="font-semibold text-lg">CodeLearn</span>
           </Link>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/" className="text-sm font-medium animate-hover hover:text-primary">
-                Dashboard
-              </Link>
-              <Link to="/progress" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                My Progress
-              </Link>
+              <motion.div
+                whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <Link to="/" className="text-sm font-medium animate-hover hover:text-primary">
+                  Dashboard
+                </Link>
+              </motion.div>
+              <motion.div 
+                whileHover={{ y: -2 }}
+                transition={{ type: "spring", stiffness: 300, damping: 10 }}
+              >
+                <Link to="/progress" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
+                  My Progress
+                </Link>
+              </motion.div>
             </nav>
             <Separator orientation="vertical" className="h-6 hidden md:block" />
             <ThemeToggle />
             <AuthNav />
           </div>
         </div>
-      </header>
+      </motion.header>
 
       <main className="flex-1">
-        <section className="bg-primary/5 dark:bg-primary/10 py-10 border-b border-border">
-          <div className="container">
+        <motion.section 
+          className="bg-primary/5 dark:bg-primary/10 py-10 border-b border-border relative overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="container relative">
+            <ParticleEffect className="inset-0" />
             <div className="max-w-3xl">
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="h-5 w-5 text-primary" />
-                {/* Use the AnimatedGreeting component with key for refresh */}
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 15, -15, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ 
+                    duration: 2.5, 
+                    repeat: Infinity,
+                    repeatType: "reverse", 
+                    ease: "easeInOut" 
+                  }}
+                >
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </motion.div>
                 <AnimatedGreeting key={refreshKey} displayText={displayText} />
               </div>
-              <div className="flex items-center text-sm text-muted-foreground mt-4">
+              <motion.div 
+                className="flex items-center text-sm text-muted-foreground mt-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5, duration: 0.5 }}
+              >
                 <span className="inline-flex items-center">
                   <BookOpen className="h-4 w-4 mr-1" />
                   {pendingAssignments} pending assignments
@@ -302,10 +424,17 @@ export default function Dashboard() {
                   <Users className="h-4 w-4 mr-1" />
                   {enrolledBatches.length} enrolled courses
                 </span>
-              </div>
+              </motion.div>
             </div>
           </div>
-        </section>
+          
+          {/* Gradient animated overlay */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/10 opacity-50"
+            animate={{ x: ['0%', '100%', '0%'] }}
+            transition={{ duration: 15, ease: "linear", repeat: Infinity }}
+          />
+        </motion.section>
 
         <section className="container py-8">
           <Tabs defaultValue="batches" className="w-full">
@@ -315,19 +444,31 @@ export default function Dashboard() {
                 <TabsTrigger value="assignments">
                   Assignments
                   {pendingAssignments > 0 && (
-                    <Badge variant="destructive" className="ml-2">
-                      {pendingAssignments}
-                    </Badge>
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ 
+                        type: "spring", 
+                        stiffness: 300, 
+                        damping: 10 
+                      }}
+                    >
+                      <Badge variant="destructive" className="ml-2">
+                        {pendingAssignments}
+                      </Badge>
+                    </motion.div>
                   )}
                 </TabsTrigger>
               </TabsList>
               
-              {/* Add Join Batch Dialog */}
+              {/* Join Batch button with hover effect */}
               <Dialog open={enrollmentDialogOpen} onOpenChange={setEnrollmentDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-1">
-                    <Plus className="h-4 w-4" /> Join Batch
-                  </Button>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button size="sm" className="gap-1">
+                      <Plus className="h-4 w-4" /> Join Batch
+                    </Button>
+                  </motion.div>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
@@ -366,122 +507,213 @@ export default function Dashboard() {
             </div>
             
             <TabsContent value="batches" className="pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {isLoading ? (
-                  <p>Loading your enrolled batches...</p>
-                ) : enrolledBatches.length > 0 ? (
-                  enrolledBatches.map((batch) => (
-                    <Card key={batch._id} className="overflow-hidden border border-border/40 hover:border-border/80 transition-all">
-                      <CardHeader className="bg-primary/5 dark:bg-primary/10 pb-3">
-                        <CardTitle className="text-lg">{batch.class.name}</CardTitle>
-                        <CardDescription>
-                          {batch.class.subject} • Teacher: {batch.class.teacher.username}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="pt-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {batch.students.length} students enrolled
-                          </span>
-                        </div>
-                        {/* Replace the current button section in the CardContent with this dropdown menu */}
-                        <div className="flex justify-between items-center">
-                          <Badge variant="outline" className="mb-1">
-                            {batch.schedule || "Flexible Schedule"}
-                          </Badge>
-                          <div className="flex gap-2">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="h-4 w-4" />
-                                  <span className="sr-only">More options</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => {
-                                    setSelectedBatchToLeave(batch._id);
-                                    setLeaveBatchDialogOpen(true);
-                                  }}
+              <AnimatePresence>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {isLoading ? (
+                    <motion.div
+                      className="col-span-full flex justify-center py-10"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                        className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full"
+                      />
+                    </motion.div>
+                  ) : enrolledBatches.length > 0 ? (
+                    enrolledBatches.map((batch, index) => (
+                      <motion.div
+                        key={batch._id}
+                        custom={index}
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                        whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                      >
+                        <Card className="overflow-hidden border border-border/40 hover:border-border/80 transition-all h-full">
+                          <CardHeader className="bg-primary/5 dark:bg-primary/10 pb-3">
+                            <CardTitle className="text-lg">{batch.class.name}</CardTitle>
+                            <CardDescription>
+                              {batch.class.subject} • Teacher: {batch.class.teacher.username}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pt-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">
+                                {batch.students.length} students enrolled
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <Badge variant="outline" className="mb-1">
+                                {batch.schedule || "Flexible Schedule"}
+                              </Badge>
+                              <div className="flex gap-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreVertical className="h-4 w-4" />
+                                      <span className="sr-only">More options</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem 
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => {
+                                        setSelectedBatchToLeave(batch._id);
+                                        setLeaveBatchDialogOpen(true);
+                                      }}
+                                    >
+                                      Opt out from batch
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                
+                                <motion.div
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
                                 >
-                                  Opt out from batch
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                            
-                            <Button size="sm" asChild variant="secondary" className="gap-1">
-                              <Link to={`/batches/${batch._id}`}>
-                                View Details <ArrowRight className="h-3 w-3" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-10">
-                    <BookOpen className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                    <h3 className="text-lg font-medium mb-2">No batches found</h3>
-                    <p className="text-muted-foreground mb-4 max-w-md mx-auto">
-                      You're not enrolled in any batches yet.
-                    </p>
-                    <Button asChild size="sm">
-                      <Link to="/available-batches">Browse Available Batches</Link>
-                    </Button>
-                  </div>
-                )}
-              </div>
+                                  <Button size="sm" asChild variant="secondary" className="gap-1">
+                                    <Link to={`/batches/${batch._id}`}>
+                                      View Details <ArrowRight className="h-3 w-3" />
+                                    </Link>
+                                  </Button>
+                                </motion.div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <motion.div 
+                      className="col-span-full text-center py-10"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6 }}
+                    >
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.5 }}
+                      >
+                        <BookOpen className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                      </motion.div>
+                      <h3 className="text-lg font-medium mb-2">No batches found</h3>
+                      <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                        You're not enrolled in any batches yet.
+                      </p>
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }} 
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button asChild size="sm">
+                          <Link to="/available-batches">Browse Available Batches</Link>
+                        </Button>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </div>
+              </AnimatePresence>
             </TabsContent>
             
             <TabsContent value="assignments" className="pt-2">
               <div className="space-y-4">
                 {isLoading ? (
-                  <p>Loading your assignments...</p>
+                  <motion.div
+                    className="flex justify-center py-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                      className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full"
+                    />
+                  </motion.div>
                 ) : studentAssignments.length > 0 ? (
-                  studentAssignments.map((item) => (
-                    <Card key={item._id} className="border border-border/40 hover:border-border/80 transition-all">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{item.assignment.title}</CardTitle>
-                            <CardDescription>
-                              {item.assignment.class.name} • {item.assignment.class.subject}
-                            </CardDescription>
+                  studentAssignments.map((item, index) => (
+                    <motion.div
+                      key={item._id}
+                      custom={index}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      whileHover={{ y: -3, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                      transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                    >
+                      <Card className="border border-border/40 hover:border-border/80 transition-all">
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg">{item.assignment.title}</CardTitle>
+                              <CardDescription>
+                                {item.assignment.class.name} • {item.assignment.class.subject}
+                              </CardDescription>
+                            </div>
+                            <motion.div
+                              initial={{ scale: 0.8 }}
+                              animate={{ scale: 1 }}
+                              transition={{ delay: 0.3 + index * 0.1 }}
+                            >
+                              <Badge variant={item.submitted ? "success" : "destructive"}>
+                                {item.submitted ? "Submitted" : "Pending"}
+                              </Badge>
+                            </motion.div>
                           </div>
-                          <Badge variant={item.submitted ? "success" : "destructive"}>
-                            {item.submitted ? "Submitted" : "Pending"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm mb-3 line-clamp-2">
-                          {item.assignment.description}
-                        </p>
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm text-muted-foreground">
-                            <span className="font-medium">Due:</span>{" "}
-                            {new Date(item.assignment.dueDate).toLocaleDateString()}
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm mb-3 line-clamp-2">
+                            {item.assignment.description}
+                          </p>
+                          <div className="flex justify-between items-center">
+                            <div className="text-sm text-muted-foreground">
+                              <span className="font-medium">Due:</span>{" "}
+                              {new Date(item.assignment.dueDate).toLocaleDateString()}
+                            </div>
+                            <motion.div
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <Button size="sm" asChild variant={item.submitted ? "outline" : "default"} className="gap-1">
+                                <Link to={`/assignments/${item.assignment._id}`}>
+                                  {item.submitted ? "View Submission" : "Start Working"} <ArrowRight className="h-3 w-3" />
+                                </Link>
+                              </Button>
+                            </motion.div>
                           </div>
-                          <Button size="sm" asChild variant={item.submitted ? "outline" : "default"} className="gap-1">
-                            <Link to={`/assignments/${item.assignment._id}`}>
-                              {item.submitted ? "View Submission" : "Start Working"} <ArrowRight className="h-3 w-3" />
-                            </Link>
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
                   ))
                 ) : (
-                  <div className="text-center py-10">
-                    <BookOpenCheck className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                  <motion.div 
+                    className="text-center py-10"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      transition={{ 
+                        delay: 0.2, 
+                        duration: 0.5,
+                        type: "spring",
+                        stiffness: 200
+                      }}
+                    >
+                      <BookOpenCheck className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                    </motion.div>
                     <h3 className="text-lg font-medium mb-2">All caught up!</h3>
                     <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                       You don't have any assignments right now.
                     </p>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </TabsContent>
@@ -489,17 +721,27 @@ export default function Dashboard() {
         </section>
       </main>
 
-      <footer className="border-t border-border py-6">
+      <motion.footer 
+        className="border-t border-border py-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.8, duration: 0.5 }}
+      >
         <div className="container flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2">
-            <Code className="h-5 w-5 text-primary" />
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Code className="h-5 w-5 text-primary" />
+            </motion.div>
             <span className="font-medium">CodeLearn</span>
           </div>
           <div className="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} CodeLearn. All rights reserved.
           </div>
         </div>
-      </footer>
+      </motion.footer>
 
       {/* Add this AlertDialog component at the end of your JSX, before closing the main div */}
       <AlertDialog open={leaveBatchDialogOpen} onOpenChange={setLeaveBatchDialogOpen}>
