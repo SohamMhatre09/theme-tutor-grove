@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StepNavigation } from "@/components/StepNavigation";
-import { Lightbulb, Copy, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Lightbulb, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -19,7 +19,6 @@ export function InstructionPanel({
 }: InstructionPanelProps) {
   const { toast } = useToast();
   const [showHint, setShowHint] = useState(false);
-  const [copied, setCopied] = useState(false);
   
   const currentModule = assignment.modules[currentStepIndex];
   const totalModules = assignment.modules.length;
@@ -38,24 +37,10 @@ export function InstructionPanel({
     }
   };
 
-  // The error is here - assignment.steps doesn't exist
-  // Instead, use the currentModule which is from assignment.modules[currentStepIndex]
   const currentStep = currentModule;
 
   const toggleHint = () => {
     setShowHint(!showHint);
-  };
-
-  const copyExample = async () => {
-    if (currentStep.codeTemplate) {
-      await navigator.clipboard.writeText(currentStep.codeTemplate);
-      setCopied(true);
-      toast({
-        title: "Copied to clipboard",
-        duration: 2000,
-      });
-      setTimeout(() => setCopied(false), 2000);
-    }
   };
 
   const renderContent = (content: string) => {
@@ -111,28 +96,6 @@ export function InstructionPanel({
         <div className="prose prose-sm dark:prose-invert max-w-none">
           {renderContent(currentStep.learningText || "")}
         </div>
-
-        {currentStep.codeTemplate && (
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-2 right-2 z-10">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
-                onClick={copyExample}
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <pre className="bg-editor-background text-editor-foreground p-4 rounded-md code-font text-sm overflow-x-auto">
-              <code>{currentStep.codeTemplate}</code>
-            </pre>
-          </Card>
-        )}
 
         {currentStep.hints && currentStep.hints.length > 0 && (
           <div className="space-y-2">
