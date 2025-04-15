@@ -15,8 +15,6 @@ const Landing = lazy(() => import("./pages/Landing"));
 // Existing pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Assignment = lazy(() => import("./pages/Assignment"));
-const PythonAssignments = lazy(() => import("./pages/PythonAssignments"));
-const AssignmentPage = lazy(() => import("./pages/AssignmentPage"));
 const BatchDetails = lazy(() => import("./pages/BatchDetails"));
 
 // Auth pages
@@ -59,17 +57,6 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 
-                <Route path="/assignment/:id" element={
-                  <ProtectedRoute>
-                    <Assignment />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="/python-assignment/:id" element={
-                  <ProtectedRoute>
-                    <AssignmentPage />
-                  </ProtectedRoute>
-                } />
                 
                 <Route path="/assignments/:id" element={
                   <ProtectedRoute>
@@ -77,14 +64,6 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 
-                {/* Semi-protected routes */}
-                <Route path="/python-assignments" element={<PythonAssignments />} />
-                
-                {/* Redirect for compatibility with current URL */}
-                <Route 
-                  path="/assignment/prefix-sum-problem" 
-                  element={<Navigate to="/python-assignment/prefix-sum-problem" replace />} 
-                />
                 
                 <Route path="/batches/:batchId" element={<BatchDetails />} />
                 

@@ -9,7 +9,6 @@ import {
 import { BreadcrumbNav } from "@/components/BreadcrumbNav";
 import { InstructionPanel } from "@/components/InstructionPanel";
 import { CodeEditor } from "@/components/CodeEditor";
-import { CodeOutput } from "@/components/CodeOutput";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ResizableLayout } from "@/components/ResizableLayout";
 import { ArrowLeft, LayoutPanelLeft } from "lucide-react";
