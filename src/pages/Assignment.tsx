@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
 
+// Update API URL to use port 5000 instead of 8080
+const API_BASE_URL = 'http://localhost:5000';
+
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -46,11 +49,8 @@ export default function Assignment() {
               setCode(data.modules[0].codeTemplate || "");
             }
             
-            // Load completed modules from localStorage
-            const saved = localStorage.getItem(`completed_${id}`);
-            if (saved) {
-              setCompletedModules(JSON.parse(saved));
-            }
+            // Fetch completed modules from the server instead of localStorage
+            fetchCompletedModules(id);
           } else {
             setError("Assignment not found");
           }
@@ -61,14 +61,108 @@ export default function Assignment() {
         });
     }
   }, [id]);
+  
+  // New function to fetch completed modules from the server
+  const fetchCompletedModules = async (assignmentId: string) => {
+    try {
+      console.log('Fetching completed modules for assignment:', assignmentId);
+      const response = await fetch(`${API_BASE_URL}/api/assignments/${assignmentId}/completed-modules`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      
+      if (!response.ok) {
+        console.error(`Server returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Failed to fetch completed modules: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Fetched completed modules:', data);
+      
+      if (data.completedModules && Array.isArray(data.completedModules)) {
+        // Convert number IDs to strings for consistency
+        const moduleIds = data.completedModules.map(id => id.toString());
+        setCompletedModules(moduleIds);
+        console.log('Updated completed modules state:', moduleIds);
+      }
+    } catch (error) {
+      console.error("Error fetching completed modules:", error);
+      // Fallback to localStorage for backward compatibility
+      const saved = localStorage.getItem(`completed_${assignmentId}`);
+      if (saved) {
+        try {
+          const savedModules = JSON.parse(saved);
+          console.log('Using localStorage fallback for completed modules:', savedModules);
+          setCompletedModules(savedModules);
+        } catch (e) {
+          console.error('Error parsing localStorage data:', e);
+        }
+      }
+    }
+  };
 
-  // Enhanced markStepCompleted function
-  const markModuleAsCompleted = (moduleId: string) => {
+  // Updated markModuleAsCompleted function to use the server instead of localStorage
+  const markModuleAsCompleted = async (moduleId: string) => {
     if (!completedModules.includes(moduleId)) {
-      const updatedCompletedModules = [...completedModules, moduleId];
-      setCompletedModules(updatedCompletedModules);
-      // Save to localStorage
-      localStorage.setItem(`completed_${id}`, JSON.stringify(updatedCompletedModules));
+      try {
+        console.log('Marking module as completed:', moduleId);
+        console.log('API URL:', `${API_BASE_URL}/api/assignments/${id}/modules/${moduleId}/complete`);
+        
+        const response = await fetch(`${API_BASE_URL}/api/assignments/${id}/modules/${moduleId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({
+            code: code // Send the current code too
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error(`Server returned ${response.status}: ${response.statusText}`);
+          throw new Error('Failed to mark module as completed');
+        }
+        
+        const data = await response.json();
+        console.log('Server response for completed module:', data);
+        
+        // Update the local state with the server response
+        if (data.completedModules && Array.isArray(data.completedModules)) {
+          // Convert number IDs to strings for consistency
+          const moduleIds = data.completedModules.map(id => id.toString());
+          setCompletedModules(moduleIds);
+          console.log('Updated completed modules from server:', moduleIds);
+        } else {
+          // Fallback behavior if server doesn't return completed modules
+          const updatedCompletedModules = [...completedModules, moduleId];
+          setCompletedModules(updatedCompletedModules);
+          console.log('Using fallback for completed modules update:', updatedCompletedModules);
+        }
+        
+        // Keep the localStorage update for backward compatibility
+        const updatedModules = [...completedModules, moduleId];
+        localStorage.setItem(`completed_${id}`, JSON.stringify(updatedModules));
+        
+        toast({
+          title: "Progress saved!",
+          description: "Your progress has been saved to your account.",
+        });
+      } catch (error) {
+        console.error("Error marking module as completed:", error);
+        
+        // Fallback to localStorage only
+        const updatedModules = [...completedModules, moduleId];
+        setCompletedModules(updatedModules);
+        localStorage.setItem(`completed_${id}`, JSON.stringify(updatedModules));
+        
+        toast({
+          title: "Saved locally",
+          description: "Progress saved locally. Sync will happen when connection is restored.",
+          variant: "default"
+        });
+      }
     }
   };
 
@@ -78,7 +172,7 @@ export default function Assignment() {
       if (moduleIndex > 0 && moduleIndex > currentStepIndex + 1) {
         const previousModules = assignment.modules.slice(0, moduleIndex);
         const allPreviousCompleted = previousModules.every(module => 
-          completedModules.includes(module.id)
+          completedModules.includes(module.id.toString())
         );
         
         if (!allPreviousCompleted) {
@@ -158,7 +252,7 @@ export default function Assignment() {
       // Check if output matches expected output
       const currentModule = assignment.modules[currentStepIndex];
       if (currentModule.expectedOutput && formattedOutput.trim() === currentModule.expectedOutput.trim()) {
-        markModuleAsCompleted(currentModule.id);
+        markModuleAsCompleted(currentModule.id.toString());
         toast({
           title: "Success!",
           description: "Your solution is correct. Great job!",

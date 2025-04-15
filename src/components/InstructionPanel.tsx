@@ -40,7 +40,7 @@ export function InstructionPanel({
   };
 
   const currentStep = currentModule;
-  const isCurrentStepCompleted = completedModules.includes(currentStep.id);
+  const isCurrentStepCompleted = completedModules.includes(currentStep.id.toString());
   const isNextStepUnlocked = 
     currentStepIndex + 1 < totalModules && 
     (completedModules.includes(currentStep.id) || currentStepIndex === 0);

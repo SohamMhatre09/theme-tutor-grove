@@ -990,6 +990,190 @@ app.post('/api/assignments/:id/submit', authenticateToken, async (req, res) => {
   }
 });
 
+// Mark a module as completed
+app.post('/api/assignments/:id/modules/:moduleId/complete', authenticateToken, async (req, res) => {
+  try {
+    console.log('API: Marking module as completed:', req.params);
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Only students can mark modules as completed' });
+    }
+
+    const assignmentId = req.params.id;
+    const moduleId = Number(req.params.moduleId);
+
+    console.log('Looking for student assignment:', { student: req.user.id, assignment: assignmentId });
+    
+    // Find the student assignment
+    let studentAssignment = await StudentAssignment.findOne({
+      student: req.user.id,
+      assignment: assignmentId
+    });
+
+    console.log('Found student assignment:', studentAssignment ? studentAssignment._id : 'none');
+
+    if (!studentAssignment) {
+      // If no student assignment exists yet, create one
+      console.log('Creating new student assignment');
+      
+      const assignment = await Assignment.findById(assignmentId);
+      if (!assignment) {
+        return res.status(404).json({ message: 'Assignment not found' });
+      }
+      
+      studentAssignment = new StudentAssignment({
+        student: req.user.id,
+        assignment: assignmentId,
+        status: 'in-progress',
+        progress: 0,
+        submissions: []
+      });
+    }
+
+    // Check if the submission for this module exists
+    const submissionExists = studentAssignment.submissions.some(
+      submission => submission.moduleId === moduleId
+    );
+
+    // If submission doesn't exist, create it
+    if (!submissionExists) {
+      studentAssignment.submissions.push({
+        moduleId,
+        code: req.body.code || '',
+        submittedAt: new Date()
+      });
+      console.log(`Added new submission for module ${moduleId}`);
+    } else {
+      // Update existing submission
+      const submissionIndex = studentAssignment.submissions.findIndex(s => s.moduleId === moduleId);
+      if (req.body.code) {
+        studentAssignment.submissions[submissionIndex].code = req.body.code;
+      }
+      studentAssignment.submissions[submissionIndex].submittedAt = new Date();
+      console.log(`Updated existing submission for module ${moduleId}`);
+    }
+
+    // Get the assignment to calculate progress
+    const assignment = await Assignment.findById(assignmentId);
+    if (assignment && assignment.modules) {
+      const totalModules = assignment.modules.length;
+      
+      // Get unique completed modules
+      const completedModules = new Set(
+        studentAssignment.submissions.map(s => s.moduleId)
+      );
+      
+      // Update progress
+      studentAssignment.progress = Math.floor((completedModules.size / totalModules) * 100);
+
+      if (studentAssignment.progress === 100) {
+        studentAssignment.status = 'completed';
+      } else if (studentAssignment.progress > 0) {
+        studentAssignment.status = 'in-progress';
+      }
+
+      console.log('Updating progress to:', studentAssignment.progress);
+    }
+    
+    await studentAssignment.save();
+
+    // Return completed modules as array
+    const completedModuleIds = studentAssignment.submissions.map(sub => sub.moduleId);
+    
+    res.status(200).json({
+      message: 'Module marked as completed',
+      completedModules: completedModuleIds,
+      progress: studentAssignment.progress,
+      status: studentAssignment.status
+    });
+  } catch (error) {
+    console.error('Error marking module as completed:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get completed modules for an assignment
+app.get('/api/assignments/:id/completed-modules', authenticateToken, async (req, res) => {
+  try {
+    console.log('API: Fetching completed modules for assignment:', req.params.id);
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const assignmentId = req.params.id;
+
+    // Find the student assignment
+    const studentAssignment = await StudentAssignment.findOne({
+      student: req.user.id,
+      assignment: assignmentId
+    });
+
+    console.log('Found student assignment:', studentAssignment ? studentAssignment._id : 'none');
+
+    if (!studentAssignment) {
+      console.log('No student assignment found, returning empty array');
+      return res.status(200).json({
+        completedModules: [],
+        progress: 0,
+        status: 'assigned'
+      });
+    }
+
+    // Extract unique module IDs from submissions
+    const completedModules = studentAssignment.submissions.map(submission => submission.moduleId);
+
+    console.log('Completed modules:', completedModules);
+
+    res.status(200).json({
+      completedModules,
+      progress: studentAssignment.progress,
+      status: studentAssignment.status
+    });
+  } catch (error) {
+    console.error('Error fetching completed modules:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Get completed modules for an assignment
+app.get('/api/assignments/:id/completed-modules', authenticateToken, async (req, res) => {
+  try {
+    console.log('Fetching completed modules for assignment:', req.params.id);
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const assignmentId = req.params.id;
+
+    // Find the student assignment
+    const studentAssignment = await StudentAssignment.findOne({
+      student: req.user.id,
+      assignment: assignmentId
+    });
+
+    console.log('Found student assignment:', studentAssignment ? studentAssignment._id : 'none');
+
+    if (!studentAssignment) {
+      return res.status(404).json({ message: 'Assignment not found or not assigned to you' });
+    }
+
+    // Extract unique module IDs from submissions
+    const completedModules = Array.from(
+      new Set(studentAssignment.submissions.map(submission => submission.moduleId))
+    );
+
+    console.log('Completed modules:', completedModules);
+
+    res.status(200).json({
+      completedModules,
+      progress: studentAssignment.progress,
+      status: studentAssignment.status
+    });
+  } catch (error) {
+    console.error('Error fetching completed modules:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Student can opt out (leave) a batch
 app.post('/api/batches/:id/leave', authenticateToken, async (req, res) => {
   try {

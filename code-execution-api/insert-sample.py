@@ -5,7 +5,7 @@ url = "http://localhost:8000/create/assignment"
 
 # Assignment data
 data = {
-    "assignment_name": "67fe4c334b6b06e07842d3d5",
+    "assignment_name": "67fea48ee34de3ba8fe4ba42",
     "language": "python",
     "requirements": ["numpy"]
 }
