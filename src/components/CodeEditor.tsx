@@ -17,6 +17,8 @@ interface CodeEditorProps {
   onRun: (code: string, moduleId: number) => void;
   isExecuting: boolean;
   assignmentName?: string;
+  code?: string; // Add this prop
+  onCodeChange?: (code: string) => void; // Add this prop
 }
 
 export function CodeEditor({ 
@@ -24,11 +26,13 @@ export function CodeEditor({
   onSubmit, 
   onRun, 
   isExecuting,
-  assignmentName
+  assignmentName,
+  code: externalCode, // Rename to avoid confusion with internal state
+  onCodeChange
 }: CodeEditorProps) {
   const { theme: systemTheme } = useTheme();
   const [editorTheme, setEditorTheme] = useState<"light" | "vs-dark">(systemTheme === 'dark' ? 'vs-dark' : 'light');
-  const [code, setCode] = useState<string>(module.codeTemplate || "");
+  const [code, setCode] = useState<string>(externalCode || module.codeTemplate || "");
   
   // Toggle the editor theme
   const toggleEditorTheme = () => {
@@ -40,16 +44,22 @@ export function CodeEditor({
     setEditorTheme(systemTheme === 'dark' ? 'vs-dark' : 'light');
   }, [systemTheme]);
 
-  // Reset code when module changes
+  // Update internal code when external code changes or module changes
   useEffect(() => {
-    if (module && module.codeTemplate) {
-      setCode(module.codeTemplate.replace(/<editable>|<\/editable>/g, ""));
+    if (externalCode !== undefined) {
+      setCode(externalCode);
+    } else if (module && module.codeTemplate) {
+      setCode(module.codeTemplate);
     }
-  }, [module.id]);
+  }, [externalCode, module.id]);
 
   const handleCodeChange = (value: string | undefined) => {
     if (value !== undefined) {
       setCode(value);
+      // Call the parent's onCodeChange handler
+      if (onCodeChange) {
+        onCodeChange(value);
+      }
     }
   };
 

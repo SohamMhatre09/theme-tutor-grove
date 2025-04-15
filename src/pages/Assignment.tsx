@@ -92,6 +92,9 @@ export default function Assignment() {
     setOutput("Running code...");
     
     try {
+      // Preprocess the code to remove <editable> and </editable> tags
+      const processedCode = code.replace(/<editable>|<\/editable>/g, '');
+      
       // Execute the code via your API
       const response = await fetch("http://localhost:8000/execute/code", {
         method: "POST",
@@ -101,7 +104,7 @@ export default function Assignment() {
         body: JSON.stringify({ 
           assignment_name: id,
           language: "python", 
-          code: code
+          code: processedCode
         }),
       });
       
@@ -228,6 +231,8 @@ export default function Assignment() {
               onRun={handleRunCode}
               isExecuting={running}
               assignmentName={assignment.title}
+              code={code} // Pass the current code as a prop
+              onCodeChange={handleCodeChange} // Pass the change handler as a prop
             />
           }
           rightContent={
