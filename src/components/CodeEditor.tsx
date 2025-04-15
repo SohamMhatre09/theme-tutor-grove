@@ -17,8 +17,11 @@ interface CodeEditorProps {
   onRun: (code: string, moduleId: number) => void;
   isExecuting: boolean;
   assignmentName?: string;
-  code?: string; // Add this prop
-  onCodeChange?: (code: string) => void; // Add this prop
+  code?: string;
+  onCodeChange?: (code: string) => void;
+  isLastModule?: boolean;
+  isCurrentModuleCompleted?: boolean;
+  onFinalSubmit?: () => void;
 }
 
 export function CodeEditor({ 
@@ -27,8 +30,11 @@ export function CodeEditor({
   onRun, 
   isExecuting,
   assignmentName,
-  code: externalCode, // Rename to avoid confusion with internal state
-  onCodeChange
+  code: externalCode,
+  onCodeChange,
+  isLastModule = false,
+  isCurrentModuleCompleted = false,
+  onFinalSubmit
 }: CodeEditorProps) {
   const { theme: systemTheme } = useTheme();
   const [editorTheme, setEditorTheme] = useState<"light" | "vs-dark">(systemTheme === 'dark' ? 'vs-dark' : 'light');
@@ -114,7 +120,22 @@ export function CodeEditor({
         </div>
         
         <div className="flex items-center gap-2">
-          <Button onClick={handleSubmit} className="ml-auto">Submit Solution</Button>
+          {isLastModule ? (
+            <Button 
+              onClick={onFinalSubmit} 
+              className="ml-auto"
+              disabled={!isCurrentModuleCompleted}
+            >
+              Submit Assignment
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit} 
+              className="ml-auto"
+            >
+              Submit Solution
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 

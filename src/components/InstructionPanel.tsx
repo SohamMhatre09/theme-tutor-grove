@@ -10,12 +10,14 @@ interface InstructionPanelProps {
   assignment: any;
   currentStepIndex: number;
   onStepChange: (stepIndex: number) => void;
+  completedModules: string[];
 }
 
 export function InstructionPanel({
   assignment,
   currentStepIndex,
   onStepChange,
+  completedModules,
 }: InstructionPanelProps) {
   const { toast } = useToast();
   const [showHint, setShowHint] = useState(false);
@@ -38,6 +40,10 @@ export function InstructionPanel({
   };
 
   const currentStep = currentModule;
+  const isCurrentStepCompleted = completedModules.includes(currentStep.id);
+  const isNextStepUnlocked = 
+    currentStepIndex + 1 < totalModules && 
+    (completedModules.includes(currentStep.id) || currentStepIndex === 0);
 
   const toggleHint = () => {
     setShowHint(!showHint);
@@ -146,7 +152,7 @@ export function InstructionPanel({
           variant="outline"
           size="sm"
           onClick={handleNext}
-          disabled={isLastModule}
+          disabled={isLastModule || !isCurrentStepCompleted}
         >
           Next
           <ChevronRight className="h-4 w-4 ml-1" />

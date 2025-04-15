@@ -27,6 +27,7 @@ export default function Assignment() {
   const [error, setError] = useState("");
   const [showPanels, setShowPanels] = useState(true);
   const [output, setOutput] = useState("");
+  const [completedModules, setCompletedModules] = useState<string[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -39,11 +40,16 @@ export default function Assignment() {
         .then(response => response.json())
         .then(data => {
           if (data && data._id) {
-            // The data is the assignment object directly, not nested under "assignment"
             setAssignment(data);
             // Initialize with first module's code
             if (data.modules && data.modules.length > 0) {
               setCode(data.modules[0].codeTemplate || "");
+            }
+            
+            // Load completed modules from localStorage
+            const saved = localStorage.getItem(`completed_${id}`);
+            if (saved) {
+              setCompletedModules(JSON.parse(saved));
             }
           } else {
             setError("Assignment not found");
@@ -56,8 +62,35 @@ export default function Assignment() {
     }
   }, [id]);
 
+  // Enhanced markStepCompleted function
+  const markModuleAsCompleted = (moduleId: string) => {
+    if (!completedModules.includes(moduleId)) {
+      const updatedCompletedModules = [...completedModules, moduleId];
+      setCompletedModules(updatedCompletedModules);
+      // Save to localStorage
+      localStorage.setItem(`completed_${id}`, JSON.stringify(updatedCompletedModules));
+    }
+  };
+
   const handleModuleChange = (moduleIndex) => {
     if (assignment && assignment.modules && assignment.modules[moduleIndex]) {
+      // Check if trying to access a locked module
+      if (moduleIndex > 0 && moduleIndex > currentStepIndex + 1) {
+        const previousModules = assignment.modules.slice(0, moduleIndex);
+        const allPreviousCompleted = previousModules.every(module => 
+          completedModules.includes(module.id)
+        );
+        
+        if (!allPreviousCompleted) {
+          toast({
+            title: "Module locked",
+            description: "You need to complete previous modules first",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
       // Save current code before changing modules
       saveUserCode(id, assignment.modules[currentStepIndex].id, code);
       
@@ -125,7 +158,7 @@ export default function Assignment() {
       // Check if output matches expected output
       const currentModule = assignment.modules[currentStepIndex];
       if (currentModule.expectedOutput && formattedOutput.trim() === currentModule.expectedOutput.trim()) {
-        markStepCompleted(id, currentModule.id);
+        markModuleAsCompleted(currentModule.id);
         toast({
           title: "Success!",
           description: "Your solution is correct. Great job!",
@@ -152,6 +185,15 @@ export default function Assignment() {
 
   const togglePanels = () => {
     setShowPanels(!showPanels);
+  };
+
+  // Function to handle final submission
+  const handleFinalSubmit = () => {
+    toast({
+      title: "Assignment Completed!",
+      description: "Congratulations! You've successfully completed this assignment.",
+    });
+    // Here you would typically send a request to your backend to mark the assignment as completed
   };
 
   if (error) {
@@ -220,6 +262,7 @@ export default function Assignment() {
                 assignment={assignment}
                 currentStepIndex={currentStepIndex}
                 onStepChange={handleModuleChange}
+                completedModules={completedModules}
               />
             )
           }
@@ -232,6 +275,9 @@ export default function Assignment() {
               assignmentName={assignment.title}
               code={code} // Pass the current code as a prop
               onCodeChange={handleCodeChange} // Pass the change handler as a prop
+              isLastModule={currentStepIndex === assignment.modules.length - 1}
+              isCurrentModuleCompleted={completedModules.includes(currentModule.id)}
+              onFinalSubmit={handleFinalSubmit}
             />
           }
           rightContent={
