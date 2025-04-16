@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Code, ArrowLeft, BookOpen, Users, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { SandboxModal } from "@/components/SandboxModal";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function BatchDetails() {
   const { batchId } = useParams();
@@ -13,6 +15,10 @@ export default function BatchDetails() {
   const [assignments, setAssignments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [creatingAssignment, setCreatingAssignment] = useState(false);
+  const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchBatchDetails = async () => {
@@ -71,6 +77,50 @@ export default function BatchDetails() {
       fetchBatchDetails();
     }
   }, [batchId]);
+
+  const handleViewAssignment = async (assignmentId: string) => {
+    setCurrentAssignmentId(assignmentId);
+    setCreatingAssignment(true);
+    
+    try {
+      // Call the create assignment endpoint
+      const response = await fetch("http://localhost:8000/create/assignment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assignment_name: assignmentId,
+          language: "python",
+          requirements: ["numpy"], // You might want to make this dynamic based on the assignment
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Environment Ready",
+          description: "Your coding sandbox has been prepared",
+        });
+        
+        // Navigate to the assignment page
+        navigate(`/assignments/${assignmentId}`);
+      } else {
+        throw new Error(data.detail || "Failed to create sandbox");
+      }
+    } catch (error) {
+      console.error("Error creating sandbox:", error);
+      toast({
+        title: "Error",
+        description: "Failed to prepare your coding environment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingAssignment(false);
+      setCurrentAssignmentId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -193,10 +243,12 @@ export default function BatchDetails() {
                             ? `Due: ${new Date(assignment.dueDate).toLocaleDateString()}` 
                             : "No due date"}
                         </Badge>
-                        <Button size="sm" asChild className="gap-1">
-                          <Link to={`/assignments/${assignment._id}`}>
-                            View Assignment
-                          </Link>
+                        <Button 
+                          size="sm" 
+                          className="gap-1"
+                          onClick={() => handleViewAssignment(assignment._id)}
+                        >
+                          View Assignment
                         </Button>
                       </div>
                     </CardContent>
@@ -253,12 +305,19 @@ export default function BatchDetails() {
       </main>
 
       <footer className="border-t border-border py-6 mt-auto">
-        <div className="container">
-          <div className="text-sm text-muted-foreground">
+        <div class="container">
+          <div class="text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} CodeLearn. All rights reserved.
           </div>
         </div>
       </footer>
+
+      <SandboxModal 
+        isOpen={creatingAssignment} 
+        onOpenChange={(open) => {
+          if (!open) setCreatingAssignment(false);
+        }} 
+      />
     </div>
   );
 }
