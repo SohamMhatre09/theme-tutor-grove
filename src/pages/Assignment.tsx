@@ -16,8 +16,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
 
-// Update API URL to use port 5000 instead of 8080
-const API_BASE_URL = 'http://localhost:5000';
+// Use environment variables with fallbacks
+const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const CODE_EXECUTION_URL = process.env.CODEEXECTUION_URL || 'http://localhost:8000';
 
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +36,7 @@ export default function Assignment() {
   useEffect(() => {
     if (id) {
       // Fetch the assignment data
-      fetch(`http://localhost:5000/api/assignments/${id}`, {
+      fetch(`${API_BASE_URL}/api/assignments/${id}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -222,7 +223,7 @@ export default function Assignment() {
       const processedCode = code.replace(/<editable>|<\/editable>/g, '');
       
       // Execute the code via your API
-      const response = await fetch("http://localhost:8000/execute/code", {
+      const response = await fetch(`${CODE_EXECUTION_URL}/execute/code`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

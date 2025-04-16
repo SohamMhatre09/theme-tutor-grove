@@ -35,6 +35,9 @@ import { MoreVertical } from "lucide-react";
 // Add framer-motion for animations
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 
+const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const CODE_EXECUTION_URL = process.env.CODEEXECTUION_URL || 'http://localhost:8000';
+
 // Enhanced animated greeting component with particle effects
 function AnimatedGreeting({ displayText }) {
   const [typingComplete, setTypingComplete] = useState(false);
@@ -201,7 +204,7 @@ export default function Dashboard() {
     // Fetch enrolled batches
     const fetchEnrolledBatches = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/batches/enrolled', {
+        const response = await fetch(`${API_BASE_URL}/api/batches/enrolled`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -219,7 +222,7 @@ export default function Dashboard() {
     // Fetch student assignments
     const fetchStudentAssignments = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/student/assignments', {
+        const response = await fetch(`${API_BASE_URL}/api/student/assignments`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -258,7 +261,7 @@ export default function Dashboard() {
 
     setIsEnrolling(true);
     try {
-      const response = await fetch('http://localhost:5000/api/batches/enroll', {
+      const response = await fetch(`${API_BASE_URL}/api/batches/enroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -303,7 +306,7 @@ export default function Dashboard() {
     
     setIsLeavingBatch(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/batches/${selectedBatchToLeave}/leave`, {
+      const response = await fetch(`${API_BASE_URL}/api/batches/${selectedBatchToLeave}/leave`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

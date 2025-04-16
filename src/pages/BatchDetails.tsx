@@ -9,6 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { SandboxModal } from "@/components/SandboxModal";
 import { useToast } from "@/components/ui/use-toast";
 
+const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const CODE_EXECUTION_URL = process.env.CODEEXECTUION_URL || 'http://localhost:8000';
+
 export default function BatchDetails() {
   const { batchId } = useParams();
   const [batch, setBatch] = useState(null);
@@ -25,7 +28,7 @@ export default function BatchDetails() {
     const fetchBatchDetails = async () => {
       try {
         // Fetch batch details
-        const batchResponse = await fetch(`http://localhost:5000/api/batches/${batchId}`, {
+        const batchResponse = await fetch(`${API_BASE_URL}/api/batches/${batchId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -53,7 +56,7 @@ export default function BatchDetails() {
           setAssignments(batchData.assignments);
         } else {
           // Otherwise fetch assignments separately
-          const assignmentsResponse = await fetch(`http://localhost:5000/api/classes/${batchData.class._id}/assignments`, {
+          const assignmentsResponse = await fetch(`${API_BASE_URL}/api/classes/${batchData.class._id}/assignments`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -85,7 +88,7 @@ export default function BatchDetails() {
     
     try {
 
-      fetch(`http://localhost:5000/api/assignments/${assignmentId}`, {
+      fetch(`${API_BASE_URL}/api/assignments/${assignmentId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -103,7 +106,7 @@ export default function BatchDetails() {
           setError("Failed to load assignment");
         });
         console.log("Assignment data:", assignment);
-      const response = await fetch("http://localhost:8000/create/assignment", {
+      const response = await fetch(`${CODE_EXECUTION_URL}/create/assignment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
