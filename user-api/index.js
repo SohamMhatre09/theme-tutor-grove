@@ -25,7 +25,7 @@ app.use(express.json());
 app.use(cors());
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect("mongodb+srv://user-admin:user-admin@customerservicechat.4uk1s.mongodb.net/?retryWrites=true&w=majority&appName=CustomerServiceChat")
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -131,6 +131,8 @@ const assignmentSchema = new mongoose.Schema({
     ref: 'Class',
     required: true
   },
+  language: { type: String, required: true },
+  requirements: [String],
   modules: [{
     id: Number,
     title: String,
@@ -768,11 +770,11 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Only teachers can create assignments' });
     }
 
-    const { title, description, classId, modules } = req.body;
+    const { title, description, classId, modules, language, requirements } = req.body;
 
     // Validate input
-    if (!title || !description || !classId || !modules) {
-      return res.status(400).json({ message: 'Title, description, class ID, and modules are required' });
+    if (!title || !description || !classId || !modules || !language) {
+      return res.status(400).json({ message: 'Title, description, class ID, modules, and language are required' });
     }
 
     // Check if class exists and belongs to the teacher
@@ -789,7 +791,9 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       title,
       description,
       class: classId,
-      modules
+      modules,
+      language,
+      requirements: requirements || []
     });
 
     const savedAssignment = await newAssignment.save();
@@ -1226,7 +1230,7 @@ app.get('/', (req, res) => {
   res.send('Welcome to the User API');
 });
 // Server setup
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

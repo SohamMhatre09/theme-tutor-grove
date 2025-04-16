@@ -19,6 +19,7 @@ export default function BatchDetails() {
   const [currentAssignmentId, setCurrentAssignmentId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [assignment, setAssignment] = useState(null);
 
   useEffect(() => {
     const fetchBatchDetails = async () => {
@@ -83,7 +84,25 @@ export default function BatchDetails() {
     setCreatingAssignment(true);
     
     try {
-      // Call the create assignment endpoint
+
+      fetch(`http://localhost:5000/api/assignments/${assignmentId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data && data._id) {
+            setAssignment(data);
+          } else {
+            setError("Assignment not found");
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching assignment:", err);
+          setError("Failed to load assignment");
+        });
+        console.log("Assignment data:", assignment);
       const response = await fetch("http://localhost:8000/create/assignment", {
         method: "POST",
         headers: {
@@ -91,8 +110,8 @@ export default function BatchDetails() {
         },
         body: JSON.stringify({
           assignment_name: assignmentId,
-          language: "python",
-          requirements: ["numpy"], // You might want to make this dynamic based on the assignment
+          language: assignment.language,
+          requirements: assignment.requirements, // You might want to make this dynamic based on the assignment
         }),
       });
       

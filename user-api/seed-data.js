@@ -56,6 +56,8 @@ const assignmentSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
   class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class', required: true },
+  language: { type: String, required: true },
+  requirements: [String],
   modules: [{
     id: Number,
     title: String,
@@ -229,6 +231,8 @@ const seedDatabase = async () => {
   "title": "A* Pathfinding Algorithm Implementation",
   "description": "This interactive tutorial guides you through implementing the A* pathfinding algorithm. You'll start with basic node representation and progressively build each component of the algorithm, culminating in a working pathfinder visualized on a grid.",
   "class": classes[0]._id,
+  "language": "Python",
+  "requirements": ["numpy"],
   "modules": [
     {
       "id": 1,
@@ -317,6 +321,8 @@ const seedDatabase = async () => {
     const jsAssignment = new Assignment({
       title: 'JavaScript: Async Programming',
       description: 'Learn about Promises and async/await in JavaScript',
+      language: "Javascript",
+      requirements: ["express"],
       class: classes[1]._id,
       modules: [
         {
@@ -342,6 +348,8 @@ const seedDatabase = async () => {
       title: 'A* Pathfinding Algorithm Implementation',
       description: 'This assignment guides you through implementing the A* pathfinding algorithm',
       class: classes[2]._id,
+      language: 'Python',
+      requirements: ['numpy'],
       modules: [
         {
           id: 1,
