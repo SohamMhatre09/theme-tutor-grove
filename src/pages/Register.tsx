@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Code, Loader2, ArrowRight } from "lucide-react";
+import { Code, Loader2, ArrowRight, GraduationCap, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function Register() {
   const { register } = useAuth();
@@ -18,6 +19,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,10 +45,10 @@ export default function Register() {
 
     try {
       setIsLoading(true);
-      await register(username, email, password);
+      await register(username, email, password, role);
       toast({
         title: "Success",
-        description: "Your account has been created successfully",
+        description: `Your ${role} account has been created successfully`,
       });
       navigate("/dashboard");
     } catch (error) {
@@ -117,6 +119,35 @@ export default function Register() {
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handleSubmit} className="space-y-4">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-2"
+                >
+                  <Label>I am a</Label>
+                  <RadioGroup
+                    value={role}
+                    onValueChange={setRole}
+                    className="flex space-x-1"
+                  >
+                    <div className="flex items-center space-x-2 flex-1">
+                      <RadioGroupItem value="student" id="reg-student" />
+                      <Label htmlFor="reg-student" className="flex items-center cursor-pointer">
+                        <GraduationCap className="h-4 w-4 mr-1" />
+                        Student
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-1">
+                      <RadioGroupItem value="teacher" id="reg-teacher" />
+                      <Label htmlFor="reg-teacher" className="flex items-center cursor-pointer">
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Teacher
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </motion.div>
+
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <motion.div
@@ -201,7 +232,7 @@ export default function Register() {
                       </>
                     ) : (
                       <>
-                        Create Account
+                        Create {role.charAt(0).toUpperCase() + role.slice(1)} Account
                         <motion.div
                           animate={{ x: [0, 3, 0] }}
                           transition={{ duration: 1.5, repeat: Infinity }}

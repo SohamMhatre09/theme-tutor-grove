@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
-import { Code, Loader2 } from "lucide-react";
+import { Code, Loader2, GraduationCap, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function Login() {
   const { login } = useAuth();
@@ -16,6 +17,7 @@ export default function Login() {
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,12 +34,18 @@ export default function Login() {
 
     try {
       setIsLoading(true);
-      await login(email, password);
+      await login(email, password, role);
       toast({
         title: "Success",
-        description: "You have been logged in successfully",
+        description: `You have been logged in successfully as a ${role}`,
       });
-      navigate("/dashboard");
+      
+      // Redirect based on user role
+      if (role === "teacher") {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -106,6 +114,35 @@ export default function Login() {
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handleSubmit} className="space-y-4">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-2"
+                >
+                  <Label>I am a</Label>
+                  <RadioGroup
+                    value={role}
+                    onValueChange={setRole}
+                    className="flex space-x-1"
+                  >
+                    <div className="flex items-center space-x-2 flex-1">
+                      <RadioGroupItem value="student" id="student" />
+                      <Label htmlFor="student" className="flex items-center cursor-pointer">
+                        <GraduationCap className="h-4 w-4 mr-1" />
+                        Student
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 flex-1">
+                      <RadioGroupItem value="teacher" id="teacher" />
+                      <Label htmlFor="teacher" className="flex items-center cursor-pointer">
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Teacher
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </motion.div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <motion.div
@@ -163,7 +200,7 @@ export default function Login() {
                         Signing in...
                       </>
                     ) : (
-                      "Sign In"
+                      `Sign In as ${role.charAt(0).toUpperCase() + role.slice(1)}`
                     )}
                   </Button>
                 </motion.div>

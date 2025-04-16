@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { TeacherRoute } from "@/components/TeacherRoute";
 import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
 
@@ -24,6 +25,10 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Profile = lazy(() => import("./pages/Profile"));
 
+// Add teacher-specific pages (these will be created later)
+const TeacherDashboard = lazy(() => import("./pages/teacher/Dashboard"));
+const ManageBatches = lazy(() => import("./pages/teacher/ManageBatches"));
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,16 +41,14 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
               <Routes>
-                {/* Landing page as default route for non-authenticated users */}
+                {/* Public routes accessible to all */}
                 <Route path="/" element={<Landing />} />
-                
-                {/* Public auth routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 
-                {/* Protected routes */}
+                {/* Student routes */}
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
                     <Dashboard />
@@ -56,18 +59,30 @@ const App = () => (
                     <Profile />
                   </ProtectedRoute>
                 } />
-                
-                
                 <Route path="/assignments/:id" element={
                   <ProtectedRoute>
                     <Assignment />
                   </ProtectedRoute>
                 } />
+                <Route path="/batches/:batchId" element={
+                  <ProtectedRoute>
+                    <BatchDetails />
+                  </ProtectedRoute>
+                } />
                 
+                {/* Teacher-specific routes */}
+                <Route path="/teacher/dashboard" element={
+                  <TeacherRoute>
+                    <TeacherDashboard />
+                  </TeacherRoute>
+                } />
+                <Route path="/teacher/batches" element={
+                  <TeacherRoute>
+                    <ManageBatches />
+                  </TeacherRoute>
+                } />
                 
-                <Route path="/batches/:batchId" element={<BatchDetails />} />
-                
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                {/* Catch-all route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
