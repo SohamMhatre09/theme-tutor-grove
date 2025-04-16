@@ -35,8 +35,8 @@ import { MoreVertical } from "lucide-react";
 // Add framer-motion for animations
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 
-const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
-const CODE_EXECUTION_URL = process.env.CODEEXECTUION_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.BACKEND_URL;
+const CODE_EXECUTION_URL = import.meta.env.CODEEXECTUION_URL;
 
 // Enhanced animated greeting component with particle effects
 function AnimatedGreeting({ displayText }) {

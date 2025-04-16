@@ -17,8 +17,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
 
 // Use environment variables with fallbacks
-const API_BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
-const CODE_EXECUTION_URL = process.env.CODEEXECTUION_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.BACKEND_URL;
+const CODE_EXECUTION_URL = import.meta.env.CODEEXECTUION_URL;
 
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();

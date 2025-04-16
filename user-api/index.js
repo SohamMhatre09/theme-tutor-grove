@@ -10,8 +10,8 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 // Load environment variables
 dotenv.config();
 console.log('Environment variables loaded:', {
-  MONGODB_URI: process.env.MONGODB_URI,
-  PORT: process.env.PORT
+  MONGODB_URI: import.meta.env.MONGODB_URI,
+  PORT: import.meta.env.PORT
 });
 
 // Initialize express app

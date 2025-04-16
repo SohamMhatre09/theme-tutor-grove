@@ -1,7 +1,7 @@
 import { createContext, useState, useContext, ReactNode, useEffect } from "react";
 
 // Use environment variable with fallback
-const BACKEND_URL = process.env.BACKEND_URL;
+const BACKEND_URL = import.meta.env.BACKEND_URL;
 
 interface User {
   id: string;
