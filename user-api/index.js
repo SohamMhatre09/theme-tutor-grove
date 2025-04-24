@@ -269,7 +269,7 @@ app.post('/api/auth/register', async (req, res) => {
 // Login User
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
 
     // Validate input
     if (!email || !password) {
@@ -286,6 +286,13 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    // If role is specified in the request, validate that it matches the user's actual role
+    if (role && role !== user.role) {
+      return res.status(403).json({ 
+        message: `Access denied. You cannot login as ${role}. Your role is ${user.role}.`
+      });
     }
 
     // Create JWT token
