@@ -3,12 +3,12 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
 
-export const TeacherRoute = ({ children }: { children: React.ReactNode }) => {
+export const StudentRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isAuthenticated, loading } = useAuth();
   const { toast } = useToast();
   
   useEffect(() => {
-    if (isAuthenticated && user?.role !== "teacher") {
+    if (isAuthenticated && user?.role !== "student") {
       toast({
         title: "Access Denied",
         description: "You don't have permission to access this page.",
@@ -25,8 +25,8 @@ export const TeacherRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" />;
   }
   
-  if (user?.role !== "teacher") {
-    return <Navigate to="/dashboard" />;
+  if (user?.role !== "student") {
+    return <Navigate to="/teacher/dashboard" />;
   }
   
   return <>{children}</>;
