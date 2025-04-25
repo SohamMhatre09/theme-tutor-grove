@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SandboxModal } from "@/components/SandboxModal";
 
 // Update API URL to use port 5000 instead of 8080
 const API_BASE_URL = 'http://localhost:5000';
@@ -33,6 +34,8 @@ export default function Assignment() {
   const [showPanels, setShowPanels] = useState(true);
   const [output, setOutput] = useState("");
   const [completedModules, setCompletedModules] = useState<string[]>([]);
+  const [preparingSandbox, setPreparingSandbox] = useState(false);
+  const [sandboxReady, setSandboxReady] = useState(false);
   
   // Check if we're in preview mode
   const isPreviewMode = location.pathname.includes('/preview/');
@@ -133,12 +136,15 @@ export default function Assignment() {
         setCompletedModules(updatedModules);
         
         toast({
-          title: "Progress saved!",
-          description: "Module marked as complete in preview mode.",
+          title: "Progress saved (preview)",
+          description: "Module marked as complete in preview mode only. No data saved to database.",
         });
+        
+        console.log("Preview mode: Module marked as completed locally:", moduleId);
         return;
       }
 
+      // Original code for student mode with DB operations
       try {
         console.log('Marking module as completed:', moduleId);
         console.log('API URL:', `${API_BASE_URL}/api/assignments/${id}/modules/${moduleId}/complete`);
@@ -255,6 +261,56 @@ export default function Assignment() {
     }
   };
 
+  // Add a new effect to create sandbox for preview mode
+  useEffect(() => {
+    // Only set up sandbox in preview mode and when we have the assignment data
+    if (isPreviewMode && assignment && !sandboxReady) {
+      setupPreviewSandbox();
+    }
+  }, [isPreviewMode, assignment]);
+
+  // New function to set up sandbox for teacher preview
+  const setupPreviewSandbox = async () => {
+    try {
+      setPreparingSandbox(true);
+      console.log("Setting up preview sandbox for assignment:", id);
+      
+      const response = await fetch("http://localhost:8000/create/assignment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assignment_name: id,
+          language: assignment.language || "python",
+          requirements: assignment.requirements || [],
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log("Preview sandbox created successfully");
+        setSandboxReady(true);
+        toast({
+          title: "Preview Environment Ready",
+          description: "Your teacher preview sandbox has been prepared",
+        });
+      } else {
+        throw new Error(data.detail || "Failed to create preview sandbox");
+      }
+    } catch (error) {
+      console.error("Error creating preview sandbox:", error);
+      toast({
+        title: "Sandbox Error",
+        description: "Failed to prepare the preview environment. Some features may not work.",
+        variant: "destructive",
+      });
+    } finally {
+      setPreparingSandbox(false);
+    }
+  };
+
   const handleRunCode = async () => {
     if (!assignment) return;
     
@@ -264,6 +320,16 @@ export default function Assignment() {
     try {
       // Preprocess the code to remove <editable> and </editable> tags
       const processedCode = code.replace(/<editable>|<\/editable>/g, '');
+      
+      // Check if we're in preview mode but sandbox isn't ready
+      if (isPreviewMode && !sandboxReady) {
+        // Try to set up sandbox if not ready yet
+        await setupPreviewSandbox();
+        // If still not ready, throw error
+        if (!sandboxReady) {
+          throw new Error("Preview environment not ready. Please try again.");
+        }
+      }
       
       // Execute the code via your API
       const response = await fetch("http://localhost:8000/execute/code", {
@@ -296,10 +362,13 @@ export default function Assignment() {
       // Check if output matches expected output
       const currentModule = assignment.modules[currentStepIndex];
       if (currentModule.expectedOutput && formattedOutput.trim() === currentModule.expectedOutput.trim()) {
+        // In preview mode, just update local state without DB operations
         markModuleAsCompleted(currentModule.id.toString());
         toast({
           title: "Success!",
-          description: "Your solution is correct. Great job!",
+          description: isPreviewMode ? 
+            "Output matches expected result! Module marked as complete (preview only)." : 
+            "Your solution is correct. Great job!",
         });
       }
     } catch (error) {
@@ -409,17 +478,18 @@ export default function Assignment() {
       </header>
 
       <main className="flex-1 overflow-hidden">
-        {isPreviewMode && (
+        {/* {isPreviewMode && (
           <div className="container pt-2">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Teacher Preview Mode</AlertTitle>
-              <AlertDescription>
-                You are viewing this assignment as a student would see it. Your progress won't be saved to the database.
+            <Alert variant="default" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertTitle className="text-amber-700 dark:text-amber-400">Teacher Preview Mode</AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                You are viewing this assignment as a student would see it. Your progress is tracked locally but won't be saved to the database.
+                <br/>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="ml-4" 
+                  className="mt-2 border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/30" 
                   onClick={handleExitPreview}
                 >
                   Exit Preview
@@ -427,7 +497,7 @@ export default function Assignment() {
               </AlertDescription>
             </Alert>
           </div>
-        )}
+        )} */}
 
         <ResizableLayout
           leftContent={
@@ -437,6 +507,7 @@ export default function Assignment() {
                 currentStepIndex={currentStepIndex}
                 onStepChange={handleModuleChange}
                 completedModules={completedModules}
+                isPreviewMode={isPreviewMode}  // Pass this flag to the component
               />
             )
           }
@@ -461,8 +532,14 @@ export default function Assignment() {
                 isExecuting={running}
                 expectedOutput={currentModule.expectedOutput}
                 onSuccess={() => {
-                  // Mark module as completed when output matches
-                  markStepCompleted(id, currentModule.id);
+                  // Use our preview-aware function instead of markStepCompleted
+                  if (isPreviewMode) {
+                    // Just update local state in preview mode
+                    markModuleAsCompleted(currentModule.id);
+                  } else {
+                    // Normal behavior for students
+                    markStepCompleted(id, currentModule.id);
+                  }
                 }}
               />
             )
@@ -471,6 +548,12 @@ export default function Assignment() {
           showRight={showPanels}
         />
       </main>
+      <SandboxModal 
+        isOpen={preparingSandbox} 
+        onOpenChange={(open) => {
+          if (!open) setPreparingSandbox(false);
+        }} 
+      />
     </div>
   );
 }
