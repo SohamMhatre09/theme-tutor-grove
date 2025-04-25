@@ -504,6 +504,89 @@ app.get('/api/classes/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Update a class (teachers only)
+app.put('/api/classes/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Only teachers can update classes' });
+    }
+
+    const classId = req.params.id;
+    const { name, subject, description } = req.body;
+
+    // Find the class
+    const classItem = await Class.findById(classId);
+    if (!classItem) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Check if teacher owns this class
+    if (classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Update the class with new values
+    if (name) classItem.name = name;
+    if (subject) classItem.subject = subject;
+    if (description !== undefined) classItem.description = description;
+
+    const updatedClass = await classItem.save();
+
+    res.status(200).json({
+      message: 'Class updated successfully',
+      class: updatedClass
+    });
+  } catch (error) {
+    console.error('Class update error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete a class (teachers only)
+app.delete('/api/classes/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Only teachers can delete classes' });
+    }
+
+    const classId = req.params.id;
+
+    // Find the class
+    const classItem = await Class.findById(classId);
+    if (!classItem) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Check if teacher owns this class
+    if (classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Delete all batches for this class
+    await Batch.deleteMany({ class: classId });
+
+    // Delete all assignments for this class
+    const deletedAssignments = await Assignment.find({ class: classId });
+    const assignmentIds = deletedAssignments.map(a => a._id);
+    
+    // Delete all student assignments for this class's assignments
+    await StudentAssignment.deleteMany({ assignment: { $in: assignmentIds } });
+    await Assignment.deleteMany({ class: classId });
+
+    // Delete the class
+    await Class.findByIdAndDelete(classId);
+
+    res.status(200).json({
+      message: 'Class and all associated data deleted successfully'
+    });
+  } catch (error) {
+    console.error('Class deletion error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Create a batch for a class (teachers only)
 app.post('/api/batches', authenticateToken, async (req, res) => {
   try {
@@ -581,6 +664,77 @@ app.get('/api/classes/:classId/batches', authenticateToken, async (req, res) => 
     res.status(200).json(batches);
   } catch (error) {
     console.error('Fetch batches error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update a batch (teachers only)
+app.put('/api/batches/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Only teachers can update batches' });
+    }
+
+    const batchId = req.params.id;
+    const { name } = req.body;
+
+    // Find the batch
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Check if the class for this batch belongs to the teacher
+    const classItem = await Class.findById(batch.class);
+    if (!classItem || classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Update the batch
+    if (name) batch.name = name;
+    const updatedBatch = await batch.save();
+
+    res.status(200).json({
+      message: 'Batch updated successfully',
+      batch: updatedBatch
+    });
+  } catch (error) {
+    console.error('Batch update error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete a batch (teachers only)
+app.delete('/api/batches/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Only teachers can delete batches' });
+    }
+
+    const batchId = req.params.id;
+
+    // Find the batch
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Check if the class for this batch belongs to the teacher
+    const classItem = await Class.findById(batch.class);
+    if (!classItem || classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Delete the batch
+    await Batch.findByIdAndDelete(batchId);
+
+    res.status(200).json({
+      message: 'Batch deleted successfully'
+    });
+  } catch (error) {
+    console.error('Batch deletion error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
