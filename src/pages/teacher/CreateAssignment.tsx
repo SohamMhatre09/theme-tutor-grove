@@ -35,8 +35,11 @@ import {
   BookOpen,
   LightbulbIcon,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import axios from "axios";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -66,6 +69,7 @@ export default function CreateAssignment() {
   const [classes, setClasses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [activeModuleIndex, setActiveModuleIndex] = useState<number>(0);
   const [newRequirement, setNewRequirement] = useState<string>("");
   const [newHint, setNewHint] = useState<string>("");
@@ -355,6 +359,103 @@ export default function CreateAssignment() {
     }
   };
 
+  // Magic Generation
+  const [magicTitle, setMagicTitle] = useState<string>("");
+  const [isMagicDialogOpen, setIsMagicDialogOpen] = useState<boolean>(false);
+
+  const generateAssignment = async () => {
+    if (!magicTitle.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a title for your assignment",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+
+      const response = await axios.post(
+        `${API_BASE_URL}/generate-assignment`,
+        { description: magicTitle },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        // Process the generated assignment
+        const generatedAssignment = response.data.assignment;
+        
+        // Extract requirements if they exist
+        const requirements = generatedAssignment.requirements || [];
+        
+        // Process modules and format code templates
+        const processedModules = (response.data.modules || []).map((module: any) => {
+          let codeTemplate = "";
+          
+          // Check if we have code parts to process (new format)
+          if (Array.isArray(module.codeParts)) {
+            // Combine code parts into a single string with <editable> tags
+            codeTemplate = module.codeParts.reduce((acc: string, part: any) => {
+              if (part.editable) {
+                return acc + `<editable>${part.code}</editable>`;
+              }
+              return acc + part.code;
+            }, "");
+          } else {
+            // Fallback to old format or empty string
+            codeTemplate = module.codeTemplate || "";
+          }
+          
+          return {
+            id: module.id,
+            title: `Module ${module.id}: ${module.title.includes(':') ? module.title.split(':')[1].trim() : module.title}`,
+            learningText: module.learningText || "",
+            codeTemplate: codeTemplate,
+            hints: module.hints || [],
+            expectedOutput: module.expectedOutput || "",
+          };
+        });
+        
+        // Update form data with the generated content
+        setFormData({
+          title: generatedAssignment.title || magicTitle,
+          description: generatedAssignment.description || "",
+          language: generatedAssignment.language || "Python", // Default to Python if not specified
+          requirements: requirements,
+          modules: processedModules,
+        });
+
+        // Close the dialog
+        setIsMagicDialogOpen(false);
+        
+        toast({
+          title: "Success",
+          description: "Assignment generated successfully!",
+        });
+      } else {
+        throw new Error("Failed to generate assignment");
+      }
+    } catch (error) {
+      console.error("Error generating assignment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate the assignment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Handle module title update with custom name
   const handleModuleTitleChange = (index: number, value: string) => {
     let newTitle = value;
@@ -404,10 +505,22 @@ export default function CreateAssignment() {
           <div className="flex-grow lg:w-2/3 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Assignment Details</CardTitle>
-                <CardDescription>
-                  Provide the basic information about this assignment
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Assignment Details</CardTitle>
+                    <CardDescription>
+                      Provide the basic information about this assignment
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="gap-1"
+                    onClick={() => setIsMagicDialogOpen(true)}
+                  >
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    Magic
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <form className="space-y-6" onSubmit={handleSubmit}>
@@ -832,6 +945,58 @@ export default function CreateAssignment() {
           </div>
         </div>
       </main>
+
+      {/* Magic Generation Dialog */}
+      <Dialog open={isMagicDialogOpen} onOpenChange={setIsMagicDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              Magic Assignment Generator
+            </DialogTitle>
+            <DialogDescription>
+              Let AI create an assignment for you based on a title. Enter a descriptive title and we'll generate a complete assignment structure.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="magic-title">Assignment Title</Label>
+              <Input
+                id="magic-title"
+                placeholder="e.g., Interactive Binary Search Tutorial"
+                value={magicTitle}
+                onChange={(e) => setMagicTitle(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                The more specific your title, the better the generated assignment will be.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsMagicDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={generateAssignment}
+              className="gap-2"
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Building assignment...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Generate
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

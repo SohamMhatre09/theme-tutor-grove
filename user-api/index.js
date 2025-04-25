@@ -448,9 +448,9 @@ class AssignmentGeneratorAgent {
     this.geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
   }
 
-  async generateAssignment(description) {
+  async generateAssignment(description, classId = null) {
     // Generate the detailed assignment structure using Gemini API
-    const prompt = this._createPrompt(description);
+    const prompt = this._createPrompt(description, classId);
     const response = await this._callGeminiApi(prompt);
     
     // Parse and validate the generated assignment
@@ -459,7 +459,7 @@ class AssignmentGeneratorAgent {
     return assignment;
   }
 
-  _createPrompt(description) {
+  _createPrompt(description, classId) {
     return `
 You are an expert computer science educator. Create a detailed coding assignment based on this simple description: "${description}"
 
@@ -476,6 +476,9 @@ Return your response as a valid JSON object with this structure:
   "assignment": {
     "title": "Assignment title",
     "description": "Overall description of the assignment",
+    "language": "Python",
+    "requirements": ["numpy", "matplotlib"],
+    "class": "${classId || ''}",
     "modules": [
       {
         "id": 1,
@@ -496,6 +499,8 @@ Make sure:
 - There should be 4-6 modules that break down the assignment into logical learning steps
 - Include appropriate imports and setup code in the first module
 - The final module should include test code to demonstrate the solution works
+- IMPORTANT: Specify "language" (e.g., "Python", "JavaScript") and "requirements" (list of libraries/packages needed)
+- Use <editable> tags (lowercase) in the code template, not <EDITABLE>
 
 Ensure the JSON is well-formed without any formatting errors.
 `;
@@ -561,9 +566,19 @@ Ensure the JSON is well-formed without any formatting errors.
       return { assignment };
     }
     
+    // Ensure all required fields are present
+    const assignmentData = assignment.assignment;
+    if (!assignmentData.language) {
+      assignmentData.language = "Python";
+    }
+    
+    if (!assignmentData.requirements || !Array.isArray(assignmentData.requirements)) {
+      assignmentData.requirements = [];
+    }
+    
     // Ensure all modules have the required fields
-    for (let i = 0; i < (assignment.assignment.modules || []).length; i++) {
-      const module = assignment.assignment.modules[i];
+    for (let i = 0; i < (assignmentData.modules || []).length; i++) {
+      const module = assignmentData.modules[i];
       
       if (!module.id) {
         module.id = i + 1;
@@ -574,29 +589,25 @@ Ensure the JSON is well-formed without any formatting errors.
       }
       
       if (module.codeTemplate) {
-        // Ensure code template has <EDITABLE> tags
-        if (!module.codeTemplate.includes("<EDITABLE>")) {
+        // Convert <EDITABLE> to <editable> if needed
+        module.codeTemplate = module.codeTemplate
+          .replace(/<EDITABLE>/g, "<editable>")
+          .replace(/<\/EDITABLE>/g, "</editable>");
+        
+        // Ensure code template has <editable> tags
+        if (!module.codeTemplate.includes("<editable>")) {
           const lines = module.codeTemplate.split("\n");
           module.codeTemplate = [
             lines[0],
-            "<EDITABLE>",
+            "<editable>",
             ...lines.slice(1),
-            "</EDITABLE>"
+            "</editable>"
           ].join("\n");
         }
       }
     }
     
     return assignment;
-  }
-
-  async saveAssignment(assignment, outputFile) {
-    try {
-      await fs.writeFile(outputFile, JSON.stringify(assignment, null, 2));
-      console.log(`Assignment saved to ${outputFile}`);
-    } catch (error) {
-      console.error(`Error saving assignment: ${error.message}`);
-    }
   }
 
   generateModulesJson(assignment) {
@@ -626,9 +637,14 @@ Ensure the JSON is well-formed without any formatting errors.
     const parts = [];
     let remaining = codeTemplate;
     
+    // Convert <EDITABLE> to <editable> if needed
+    remaining = remaining
+      .replace(/<EDITABLE>/g, "<editable>")
+      .replace(/<\/EDITABLE>/g, "</editable>");
+    
     while (remaining) {
       // Find the next editable section
-      const editableStart = remaining.indexOf("<EDITABLE>");
+      const editableStart = remaining.indexOf("<editable>");
       
       if (editableStart < 0) {
         // No more editable sections, add the rest as non-editable
@@ -644,10 +660,10 @@ Ensure the JSON is well-formed without any formatting errors.
       }
       
       // Extract the editable part
-      const editableEnd = remaining.indexOf("</EDITABLE>", editableStart);
+      const editableEnd = remaining.indexOf("</editable>", editableStart);
       if (editableEnd < 0) {
         // Missing closing tag, treat the rest as editable
-        const editableContent = remaining.substring(editableStart + 10);  // 10 is len("<EDITABLE>")
+        const editableContent = remaining.substring(editableStart + 10);  // 10 is len("<editable>")
         parts.push({ code: editableContent, editable: true });
         break;
       }
@@ -656,7 +672,7 @@ Ensure the JSON is well-formed without any formatting errors.
       parts.push({ code: editableContent, editable: true });
       
       // Continue with the rest of the code
-      remaining = remaining.substring(editableEnd + 11);  // 11 is len("</EDITABLE>")
+      remaining = remaining.substring(editableEnd + 11);  // 11 is len("</editable>")
     }
     
     return parts;
@@ -693,20 +709,7 @@ app.post('/api/generate-assignment', authenticateToken, async (req, res) => {
     // Generate the modules for the learning platform
     const modules = agent.generateModulesJson(assignment);
     
-    // Save files to disk (optional)
-    const outputDir = path.join(__dirname, 'output');
-    try {
-      await fs.mkdir(outputDir, { recursive: true });
-      
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const assignmentFile = path.join(outputDir, `assignment-${timestamp}.json`);
-      const modulesFile = path.join(outputDir, `modules-${timestamp}.json`);
-      
-      await agent.saveAssignment(assignment, assignmentFile);
-      await fs.writeFile(modulesFile, JSON.stringify(modules, null, 2));
-    } catch (error) {
-      console.warn(`Warning: Could not save files to disk - ${error.message}`);
-    }
+    // Skip saving files to disk - directly return the response
     
     // Return both the full assignment and the modules
     res.json({
@@ -1252,7 +1255,7 @@ app.post('/api/assignments', authenticateToken, async (req, res) => {
       }
     }
 
-    // Create student assignments
+    // Create student assignment
     const studentAssignmentPromises = Array.from(allStudentIds).map(studentId => {
       const newStudentAssignment = new StudentAssignment({
         student: studentId,
