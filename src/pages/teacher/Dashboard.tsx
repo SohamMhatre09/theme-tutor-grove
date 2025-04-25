@@ -65,8 +65,8 @@ export default function TeacherDashboard() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" asChild>
-                <Link to="/teacher/batches" className="gap-2">
-                  <Users className="h-4 w-4" /> Manage Batches
+                <Link to="/teacher/classrooms" className="gap-2">
+                  <BookOpen className="h-4 w-4" /> Manage Classrooms
                 </Link>
               </Button>
               <Button className="gap-2">

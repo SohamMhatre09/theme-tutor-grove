@@ -28,7 +28,8 @@ const Profile = lazy(() => import("./pages/Profile"));
 
 // Add teacher-specific pages (these will be created later)
 const TeacherDashboard = lazy(() => import("./pages/teacher/Dashboard"));
-const ManageBatches = lazy(() => import("./pages/teacher/ManageBatches"));
+const ClassroomManagement = lazy(() => import("./pages/teacher/ClassroomManagement"));
+const ClassroomDetails = lazy(() => import("./pages/teacher/ClassroomDetails"));
 
 const queryClient = new QueryClient();
 
@@ -77,9 +78,16 @@ const App = () => (
                     <TeacherDashboard />
                   </TeacherRoute>
                 } />
-                <Route path="/teacher/batches" element={
+                
+                {/* Classroom management routes */}
+                <Route path="/teacher/classrooms" element={
                   <TeacherRoute>
-                    <ManageBatches />
+                    <ClassroomManagement />
+                  </TeacherRoute>
+                } />
+                <Route path="/teacher/classrooms/:classroomId" element={
+                  <TeacherRoute>
+                    <ClassroomDetails />
                   </TeacherRoute>
                 } />
                 
