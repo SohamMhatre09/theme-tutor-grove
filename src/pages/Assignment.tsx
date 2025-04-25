@@ -136,12 +136,15 @@ export default function Assignment() {
         setCompletedModules(updatedModules);
         
         toast({
-          title: "Progress saved!",
-          description: "Module marked as complete in preview mode.",
+          title: "Progress saved (preview)",
+          description: "Module marked as complete in preview mode only. No data saved to database.",
         });
+        
+        console.log("Preview mode: Module marked as completed locally:", moduleId);
         return;
       }
 
+      // Original code for student mode with DB operations
       try {
         console.log('Marking module as completed:', moduleId);
         console.log('API URL:', `${API_BASE_URL}/api/assignments/${id}/modules/${moduleId}/complete`);
@@ -359,10 +362,13 @@ export default function Assignment() {
       // Check if output matches expected output
       const currentModule = assignment.modules[currentStepIndex];
       if (currentModule.expectedOutput && formattedOutput.trim() === currentModule.expectedOutput.trim()) {
+        // In preview mode, just update local state without DB operations
         markModuleAsCompleted(currentModule.id.toString());
         toast({
           title: "Success!",
-          description: "Your solution is correct. Great job!",
+          description: isPreviewMode ? 
+            "Output matches expected result! Module marked as complete (preview only)." : 
+            "Your solution is correct. Great job!",
         });
       }
     } catch (error) {
@@ -472,17 +478,18 @@ export default function Assignment() {
       </header>
 
       <main className="flex-1 overflow-hidden">
-        {isPreviewMode && (
+        {/* {isPreviewMode && (
           <div className="container pt-2">
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Teacher Preview Mode</AlertTitle>
-              <AlertDescription>
-                You are viewing this assignment as a student would see it. Your progress won't be saved to the database.
+            <Alert variant="default" className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertTitle className="text-amber-700 dark:text-amber-400">Teacher Preview Mode</AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-400">
+                You are viewing this assignment as a student would see it. Your progress is tracked locally but won't be saved to the database.
+                <br/>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="ml-4" 
+                  className="mt-2 border-amber-300 hover:bg-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/30" 
                   onClick={handleExitPreview}
                 >
                   Exit Preview
@@ -490,7 +497,7 @@ export default function Assignment() {
               </AlertDescription>
             </Alert>
           </div>
-        )}
+        )} */}
 
         <ResizableLayout
           leftContent={
@@ -500,6 +507,7 @@ export default function Assignment() {
                 currentStepIndex={currentStepIndex}
                 onStepChange={handleModuleChange}
                 completedModules={completedModules}
+                isPreviewMode={isPreviewMode}  // Pass this flag to the component
               />
             )
           }
@@ -524,8 +532,14 @@ export default function Assignment() {
                 isExecuting={running}
                 expectedOutput={currentModule.expectedOutput}
                 onSuccess={() => {
-                  // Mark module as completed when output matches
-                  markStepCompleted(id, currentModule.id);
+                  // Use our preview-aware function instead of markStepCompleted
+                  if (isPreviewMode) {
+                    // Just update local state in preview mode
+                    markModuleAsCompleted(currentModule.id);
+                  } else {
+                    // Normal behavior for students
+                    markStepCompleted(id, currentModule.id);
+                  }
                 }}
               />
             )
