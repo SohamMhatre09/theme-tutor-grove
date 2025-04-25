@@ -1,0 +1,148 @@
+[
+  {
+    "id": 1,
+    "title": "Setting up the Environment and Data",
+    "learningText": "Welcome! In this first module, we'll set up the environment and create a sorted list of numbers that we'll use for our binary search. Binary search only works on sorted data, so it's crucial to ensure our list is properly sorted before we begin. We'll also define a target value that we'll be searching for within the list.",
+    "codeParts": [
+      {
+        "code": "import random\n\n# Generate a sorted list of numbers\ndef generate_sorted_list(size):\n    numbers = sorted(random.sample(range(1, 100), size))\n    return numbers\n\n# Define the size of the list\nlist_size = 15\n\n# Generate the sorted list\nsorted_list = generate_sorted_list(list_size)\n\n# Define the target value to search for\ntarget = 42\n\n# Print the list and target value for verification\nprint(\"Sorted List:\", sorted_list)\nprint(\"Target Value:\", target)\n\n# Now, let's define the binary_search function (we'll implement it in the next module)\ndef binary_search(list, target):\n    ",
+        "editable": false
+      },
+      {
+        "code": "\n        pass # Placeholder for the binary search implementation\n    ",
+        "editable": true
+      },
+      {
+        "code": "\n\n# Call the binary search function (we'll use it in a later module)\n# result = binary_search(sorted_list, target)\n# print(\"Result:\", result)",
+        "editable": false
+      }
+    ],
+    "hints": [
+      "The `generate_sorted_list` function creates a list of unique random numbers and sorts it.",
+      "The `target` variable holds the value you'll be searching for.",
+      "The `binary_search` function is currently a placeholder; you'll implement it in the next module."
+    ],
+    "expectedOutput": "The code should print a sorted list of numbers and the target value. The `binary_search` function will not produce any output yet."
+  },
+  {
+    "id": 2,
+    "title": "Implementing the Basic Binary Search Logic",
+    "learningText": "Now, let's implement the core logic of the binary search algorithm. We'll start by defining the `low` and `high` pointers, which represent the boundaries of our search space. We'll then enter a `while` loop that continues as long as `low` is less than or equal to `high`. Inside the loop, we'll calculate the `mid` point and compare the value at `mid` with our target. If the value at `mid` is equal to the target, we've found it! If the value at `mid` is less than the target, we'll update `low` to search the right half of the list. Otherwise, we'll update `high` to search the left half of the list.",
+    "codeParts": [
+      {
+        "code": "import random\n\ndef generate_sorted_list(size):\n    numbers = sorted(random.sample(range(1, 100), size))\n    return numbers\n\nlist_size = 15\nsorted_list = generate_sorted_list(list_size)\ntarget = 42\n\nprint(\"Sorted List:\", sorted_list)\nprint(\"Target Value:\", target)\n\ndef binary_search(list, target):\n    low = 0\n    high = len(list) - 1\n\n    while low <= high:\n        mid = (low + high) // 2  # Integer division\n        guess = list[mid]\n\n        if guess == target:\n            ",
+        "editable": false
+      },
+      {
+        "code": "\n                return mid\n            ",
+        "editable": true
+      },
+      {
+        "code": "\n        elif guess < target:\n            ",
+        "editable": false
+      },
+      {
+        "code": "\n                low = mid + 1\n            ",
+        "editable": true
+      },
+      {
+        "code": "\n        else:\n            ",
+        "editable": false
+      },
+      {
+        "code": "\n                high = mid - 1\n            ",
+        "editable": true
+      },
+      {
+        "code": "\n\n    return None  # Target not found\n\nresult = binary_search(sorted_list, target)\nprint(\"Result:\", result)",
+        "editable": false
+      }
+    ],
+    "hints": [
+      "`low` and `high` represent the start and end indices of the search space.",
+      "The `while` loop continues as long as the search space is not empty.",
+      "Integer division (`//`) is used to calculate the `mid` point.",
+      "If the target is found, return the index `mid`.",
+      "If the guess is less than the target, update `low` to search the right half.",
+      "If the guess is greater than the target, update `high` to search the left half.",
+      "If the target is not found after the loop finishes, return `None`."
+    ],
+    "expectedOutput": "The code should print the index of the target value in the sorted list if it's found, or `None` if it's not found. For example, if the target is 42 and it's at index 5, the output should be 5. If 42 is not in the list, the output should be None."
+  },
+  {
+    "id": 3,
+    "title": "Handling Edge Cases and Improving Readability",
+    "learningText": "Let's improve the readability of our code and handle some edge cases. We'll add comments to explain the different parts of the algorithm. We'll also consider what happens if the list is empty. In that case, we should immediately return `None` because the target cannot be found.",
+    "codeParts": [
+      {
+        "code": "import random\n\ndef generate_sorted_list(size):\n    numbers = sorted(random.sample(range(1, 100), size))\n    return numbers\n\nlist_size = 15\nsorted_list = generate_sorted_list(list_size)\ntarget = 42\n\nprint(\"Sorted List:\", sorted_list)\nprint(\"Target Value:\", target)\n\ndef binary_search(list, target):\n    # Check if the list is empty\n    if not list:\n        return None\n\n    low = 0  # Initialize the low pointer to the start of the list\n    high = len(list) - 1  # Initialize the high pointer to the end of the list\n\n    # Continue searching while the low pointer is less than or equal to the high pointer\n    while low <= high:\n        mid = (low + high) // 2  # Calculate the middle index\n        guess = list[mid]  # Get the value at the middle index\n\n        # If the guess is equal to the target, we found it!\n        if guess == target:\n            return mid  # Return the index of the target\n        # If the guess is less than the target, search the right half of the list\n        elif guess < target:\n            ",
+        "editable": false
+      },
+      {
+        "code": "\n                low = mid + 1  # Update the low pointer to search the right half\n            ",
+        "editable": true
+      },
+      {
+        "code": "\n        # If the guess is greater than the target, search the left half of the list\n        else:\n            ",
+        "editable": false
+      },
+      {
+        "code": "\n                high = mid - 1  # Update the high pointer to search the left half\n            ",
+        "editable": true
+      },
+      {
+        "code": "\n\n    # If the target is not found, return None\n    return None\n\nresult = binary_search(sorted_list, target)\nprint(\"Result:\", result)",
+        "editable": false
+      }
+    ],
+    "hints": [
+      "Adding comments makes the code easier to understand.",
+      "Checking for an empty list is an important edge case.",
+      "The comments already explain the purpose of each section of the code."
+    ],
+    "expectedOutput": "The output should be the same as in the previous module, but the code is now more readable and handles the edge case of an empty list. The index of the target value is printed if found, otherwise None."
+  },
+  {
+    "id": 4,
+    "title": "Testing with Different Target Values",
+    "learningText": "Let's test our binary search algorithm with different target values to ensure it works correctly in various scenarios. We'll test with a target value that exists in the list, a target value that doesn't exist in the list, and a target value that is at the beginning or end of the list.",
+    "codeParts": [
+      {
+        "code": "import random\n",
+        "editable": false
+      },
+      {
+        "code": "\n\ndef generate_sorted_list(size):\n    numbers = sorted(random.sample(range(1, 100), size))\n    return numbers\n\nlist_size = 15\nsorted_list = generate_sorted_list(list_size)\n\n\ndef binary_search(list, target):\n    # Check if the list is empty\n    if not list:\n        return None\n\n    low = 0  # Initialize the low pointer to the start of the list\n    high = len(list) - 1  # Initialize the high pointer to the end of the list\n\n    # Continue searching while the low pointer is less than or equal to the high pointer\n    while low <= high:\n        mid = (low + high) // 2  # Calculate the middle index\n        guess = list[mid]  # Get the value at the middle index\n\n        # If the guess is equal to the target, we found it!\n        if guess == target:\n            return mid  # Return the index of the target\n        # If the guess is less than the target, search the right half of the list\n        elif guess < target:\n            low = mid + 1  # Update the low pointer to search the right half\n        # If the guess is greater than the target, search the left half of the list\n        else:\n            high = mid - 1  # Update the high pointer to search the left half\n\n    # If the target is not found, return None\n    return None\n\n# Test cases\ntargets = [sorted_list[0], sorted_list[-1], sorted_list[len(sorted_list) // 2], -1, 1000]\n\nfor target in targets:\n    result = binary_search(sorted_list, target)\n    print(f\"Target: {target}, Result: {result}\")\n\n# Add a new test case where the list is empty\nempty_list = []\nresult = binary_search(empty_list, 5)\nprint(f\"Target: 5, Result (Empty List): {result}\")\n\n# Add a test case where the target is the only element in the list\nsingle_element_list = [7]\nresult = binary_search(single_element_list, 7)\nprint(f\"Target: 7, Result (Single Element List): {result}\")\n\nresult = binary_search(single_element_list, 8)\nprint(f\"Target: 8, Result (Single Element List): {result}\")\n\n",
+        "editable": true
+      }
+    ],
+    "hints": [
+      "The `targets` list contains different target values to test.",
+      "The loop iterates through each target value and prints the result of the binary search.",
+      "Consider adding more test cases to cover different scenarios."
+    ],
+    "expectedOutput": "The code should print the results of the binary search for each target value in the `targets` list. The output should include the target value and the corresponding index if found, or `None` if not found. The empty list and single element list test cases should also produce the correct results."
+  },
+  {
+    "id": 5,
+    "title": "Analyzing Time Complexity",
+    "learningText": "Binary search has a time complexity of O(log n), which means that the number of operations required to find the target value grows logarithmically with the size of the list. This makes binary search very efficient for large lists. In contrast, a linear search (checking each element one by one) has a time complexity of O(n). To demonstrate the efficiency of binary search, we can compare its performance with a linear search for a large list.",
+    "codeParts": [
+      {
+        "code": "import random\n",
+        "editable": false
+      },
+      {
+        "code": "\nimport time\n\ndef generate_sorted_list(size):\n    numbers = sorted(random.sample(range(1, size * 2), size))\n    return numbers\n\ndef binary_search(list, target):\n    if not list:\n        return None\n\n    low = 0\n    high = len(list) - 1\n\n    while low <= high:\n        mid = (low + high) // 2\n        guess = list[mid]\n\n        if guess == target:\n            return mid\n        elif guess < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n\n    return None\n\ndef linear_search(list, target):\n    for i, element in enumerate(list):\n        if element == target:\n            return i\n    return None\n\nlist_size = 10000\nsorted_list = generate_sorted_list(list_size)\ntarget = sorted_list[list_size // 2]  # Choose a target that exists in the list\n\n# Measure the execution time of binary search\nstart_time = time.time()\nresult_binary = binary_search(sorted_list, target)\nbinary_search_time = time.time() - start_time\n\n# Measure the execution time of linear search\nstart_time = time.time()\nresult_linear = linear_search(sorted_list, target)\nlinear_search_time = time.time() - start_time\n\nprint(f\"List Size: {list_size}\")\nprint(f\"Target: {target}\")\nprint(f\"Binary Search Result: {result_binary}, Time: {binary_search_time:.6f} seconds\")\nprint(f\"Linear Search Result: {result_linear}, Time: {linear_search_time:.6f} seconds\")\n\n# Now, let's try with a target that doesn't exist\ntarget = list_size * 2  # A value that is guaranteed not to be in the list\n\n# Measure the execution time of binary search\nstart_time = time.time()\nresult_binary = binary_search(sorted_list, target)\nbinary_search_time = time.time() - start_time\n\n# Measure the execution time of linear search\nstart_time = time.time()\nresult_linear = linear_search(sorted_list, target)\nlinear_search_time = time.time() - start_time\n\nprint(f\"List Size: {list_size}\")\nprint(f\"Target: {target}\")\nprint(f\"Binary Search Result: {result_binary}, Time: {binary_search_time:.6f} seconds\")\nprint(f\"Linear Search Result: {result_linear}, Time: {linear_search_time:.6f} seconds\")\n",
+        "editable": true
+      }
+    ],
+    "hints": [
+      "The `time` module is used to measure the execution time of the algorithms.",
+      "The `linear_search` function implements a simple linear search algorithm.",
+      "The code compares the execution time of binary search and linear search for the same target value.",
+      "The target is chosen to be in the middle of the list to provide a fair comparison."
+    ],
+    "expectedOutput": "The code should print the execution time of both binary search and linear search for a large list. You should observe that binary search is significantly faster than linear search, especially for large lists. The output will include the list size, target value, search results, and execution times for both algorithms, both when the target is found and when it is not."
+  }
+]

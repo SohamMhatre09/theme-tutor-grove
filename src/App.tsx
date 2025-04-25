@@ -30,7 +30,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const TeacherDashboard = lazy(() => import("./pages/teacher/Dashboard"));
 const ClassroomManagement = lazy(() => import("./pages/teacher/ClassroomManagement"));
 const ClassroomDetails = lazy(() => import("./pages/teacher/ClassroomDetails"));
-
+const CreateAssignment = lazy(() => import("./pages/teacher/CreateAssignment"));
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -88,6 +88,11 @@ const App = () => (
                 <Route path="/teacher/classrooms/:classroomId" element={
                   <TeacherRoute>
                     <ClassroomDetails />
+                  </TeacherRoute>
+                } />
+                <Route path="/teacher/assignments/create" element={
+                  <TeacherRoute>
+                  <CreateAssignment />
                   </TeacherRoute>
                 } />
                 

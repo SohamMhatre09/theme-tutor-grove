@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -435,6 +438,286 @@ app.post('/api/auth/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Assignment Generator Agent
+class AssignmentGeneratorAgent {
+  constructor(geminiApiKey) {
+    this.apiKey = geminiApiKey || "AIzaSyAydz2ujm-2rlytilLL6CAylPqujxWbOwU";
+    this.geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  }
+
+  async generateAssignment(description) {
+    // Generate the detailed assignment structure using Gemini API
+    const prompt = this._createPrompt(description);
+    const response = await this._callGeminiApi(prompt);
+    
+    // Parse and validate the generated assignment
+    const assignment = this._parseResponse(response);
+    
+    return assignment;
+  }
+
+  _createPrompt(description) {
+    return `
+You are an expert computer science educator. Create a detailed coding assignment based on this simple description: "${description}"
+
+The assignment should be structured like a Codecademy-style interactive tutorial with progressive modules.
+
+For each module:
+1. Create clear learning text explaining the concept
+2. Provide code templates with <EDITABLE> tags around sections students should complete
+3. Include helpful hints for students
+4. Specify the expected output
+
+Return your response as a valid JSON object with this structure:
+{
+  "assignment": {
+    "title": "Assignment title",
+    "description": "Overall description of the assignment",
+    "modules": [
+      {
+        "id": 1,
+        "title": "Module title",
+        "learningText": "Explanatory text for this module",
+        "codeTemplate": "Full code with <EDITABLE>student code here</EDITABLE> tags",
+        "hints": ["Hint 1", "Hint 2", "Hint 3"],
+        "expectedOutput": "Description of expected output"
+      },
+      // Additional modules...
+    ]
+  }
+}
+
+Make sure:
+- Code in the codeTemplate should be valid, executable code when the <EDITABLE> sections are completed
+- Each module should build progressively on previous modules
+- There should be 4-6 modules that break down the assignment into logical learning steps
+- Include appropriate imports and setup code in the first module
+- The final module should include test code to demonstrate the solution works
+
+Ensure the JSON is well-formed without any formatting errors.
+`;
+  }
+
+  async _callGeminiApi(prompt) {
+    const headers = {
+      "Content-Type": "application/json",
+      "x-goog-api-key": this.apiKey
+    };
+    
+    const data = {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [{"text": prompt}]
+        }
+      ],
+      "generationConfig": {
+        "temperature": 0.2,
+        "topP": 0.8,
+        "topK": 40,
+        "maxOutputTokens": 8192
+      }
+    };
+    
+    try {
+      const response = await axios.post(this.geminiUrl, data, { headers });
+      return response.data;
+    } catch (error) {
+      console.error(`API call failed: ${error.message}`);
+      return { error: error.message };
+    }
+  }
+
+  _parseResponse(response) {
+    try {
+      // Extract the text from the response
+      const text = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      
+      // Find JSON object in the text (it might be surrounded by markdown code blocks)
+      const jsonStart = text.indexOf("{");
+      const jsonEnd = text.lastIndexOf("}") + 1;
+      
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        const jsonStr = text.substring(jsonStart, jsonEnd);
+        const assignment = JSON.parse(jsonStr);
+        return this._validateAssignment(assignment);
+      } else {
+        console.log("No valid JSON found in response");
+        return { error: "No valid JSON found in response", raw_response: text };
+      }
+    } catch (e) {
+      console.error(`Error parsing response: ${e}`);
+      return { error: e.message, raw_response: response };
+    }
+  }
+
+  _validateAssignment(assignment) {
+    // Check if the assignment has the expected structure
+    if (!assignment.assignment) {
+      console.log("Warning: 'assignment' key missing, restructuring response");
+      return { assignment };
+    }
+    
+    // Ensure all modules have the required fields
+    for (let i = 0; i < (assignment.assignment.modules || []).length; i++) {
+      const module = assignment.assignment.modules[i];
+      
+      if (!module.id) {
+        module.id = i + 1;
+      }
+      
+      if (!module.hints || !Array.isArray(module.hints)) {
+        module.hints = [];
+      }
+      
+      if (module.codeTemplate) {
+        // Ensure code template has <EDITABLE> tags
+        if (!module.codeTemplate.includes("<EDITABLE>")) {
+          const lines = module.codeTemplate.split("\n");
+          module.codeTemplate = [
+            lines[0],
+            "<EDITABLE>",
+            ...lines.slice(1),
+            "</EDITABLE>"
+          ].join("\n");
+        }
+      }
+    }
+    
+    return assignment;
+  }
+
+  async saveAssignment(assignment, outputFile) {
+    try {
+      await fs.writeFile(outputFile, JSON.stringify(assignment, null, 2));
+      console.log(`Assignment saved to ${outputFile}`);
+    } catch (error) {
+      console.error(`Error saving assignment: ${error.message}`);
+    }
+  }
+
+  generateModulesJson(assignment) {
+    if (!assignment.assignment) {
+      return [];
+    }
+    
+    const modules = [];
+    for (const module of assignment.assignment.modules || []) {
+      // Process the code template to extract editable and non-editable parts
+      const codeParts = this._splitCodeTemplate(module.codeTemplate || "");
+      
+      modules.push({
+        id: module.id || 0,
+        title: module.title || "",
+        learningText: module.learningText || "",
+        codeParts,
+        hints: module.hints || [],
+        expectedOutput: module.expectedOutput || ""
+      });
+    }
+    
+    return modules;
+  }
+
+  _splitCodeTemplate(codeTemplate) {
+    const parts = [];
+    let remaining = codeTemplate;
+    
+    while (remaining) {
+      // Find the next editable section
+      const editableStart = remaining.indexOf("<EDITABLE>");
+      
+      if (editableStart < 0) {
+        // No more editable sections, add the rest as non-editable
+        if (remaining.trim()) {
+          parts.push({ code: remaining, editable: false });
+        }
+        break;
+      }
+      
+      // Add non-editable part before the editable section
+      if (editableStart > 0) {
+        parts.push({ code: remaining.substring(0, editableStart), editable: false });
+      }
+      
+      // Extract the editable part
+      const editableEnd = remaining.indexOf("</EDITABLE>", editableStart);
+      if (editableEnd < 0) {
+        // Missing closing tag, treat the rest as editable
+        const editableContent = remaining.substring(editableStart + 10);  // 10 is len("<EDITABLE>")
+        parts.push({ code: editableContent, editable: true });
+        break;
+      }
+      
+      const editableContent = remaining.substring(editableStart + 10, editableEnd);
+      parts.push({ code: editableContent, editable: true });
+      
+      // Continue with the rest of the code
+      remaining = remaining.substring(editableEnd + 11);  // 11 is len("</EDITABLE>")
+    }
+    
+    return parts;
+  }
+}
+
+// Generate Assignment Endpoint
+app.post('/api/generate-assignment', authenticateToken, async (req, res) => {
+  try {
+    const { description } = req.body;
+    
+    if (!description) {
+      return res.status(400).json({ error: "Missing description in request body" });
+    }
+    
+    // Check if user is authorized (teacher role)
+    if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only teachers and admins can generate assignments' });
+    }
+    
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const agent = new AssignmentGeneratorAgent(geminiApiKey);
+    
+    // Generate the assignment
+    const assignment = await agent.generateAssignment(description);
+    
+    if (assignment.error) {
+      return res.status(500).json({ 
+        error: assignment.error,
+        rawResponse: assignment.raw_response 
+      });
+    }
+    
+    // Generate the modules for the learning platform
+    const modules = agent.generateModulesJson(assignment);
+    
+    // Save files to disk (optional)
+    const outputDir = path.join(__dirname, 'output');
+    try {
+      await fs.mkdir(outputDir, { recursive: true });
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const assignmentFile = path.join(outputDir, `assignment-${timestamp}.json`);
+      const modulesFile = path.join(outputDir, `modules-${timestamp}.json`);
+      
+      await agent.saveAssignment(assignment, assignmentFile);
+      await fs.writeFile(modulesFile, JSON.stringify(modules, null, 2));
+    } catch (error) {
+      console.warn(`Warning: Could not save files to disk - ${error.message}`);
+    }
+    
+    // Return both the full assignment and the modules
+    res.json({
+      success: true,
+      assignment: assignment.assignment,
+      modules
+    });
+    
+  } catch (error) {
+    console.error(`Error handling request: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -1285,46 +1568,6 @@ app.get('/api/assignments/:id/completed-modules', authenticateToken, async (req,
 
     // Extract unique module IDs from submissions
     const completedModules = studentAssignment.submissions.map(submission => submission.moduleId);
-
-    console.log('Completed modules:', completedModules);
-
-    res.status(200).json({
-      completedModules,
-      progress: studentAssignment.progress,
-      status: studentAssignment.status
-    });
-  } catch (error) {
-    console.error('Error fetching completed modules:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Get completed modules for an assignment
-app.get('/api/assignments/:id/completed-modules', authenticateToken, async (req, res) => {
-  try {
-    console.log('Fetching completed modules for assignment:', req.params.id);
-    if (req.user.role !== 'student') {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const assignmentId = req.params.id;
-
-    // Find the student assignment
-    const studentAssignment = await StudentAssignment.findOne({
-      student: req.user.id,
-      assignment: assignmentId
-    });
-
-    console.log('Found student assignment:', studentAssignment ? studentAssignment._id : 'none');
-
-    if (!studentAssignment) {
-      return res.status(404).json({ message: 'Assignment not found or not assigned to you' });
-    }
-
-    // Extract unique module IDs from submissions
-    const completedModules = Array.from(
-      new Set(studentAssignment.submissions.map(submission => submission.moduleId))
-    );
 
     console.log('Completed modules:', completedModules);
 

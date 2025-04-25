@@ -69,8 +69,10 @@ export default function TeacherDashboard() {
                   <BookOpen className="h-4 w-4" /> Manage Classrooms
                 </Link>
               </Button>
-              <Button className="gap-2">
-                <PlusCircle className="h-4 w-4" /> Create Assignment
+              <Button className="gap-2" >
+                <Link to="/teacher/assignments/create" className="flex items-center">
+                  <PlusCircle className="h-4 w-4" /> Create Assignment
+                </Link>
               </Button>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pencil, Search, Plus, ArrowLeft, Copy, BookOpen, Users, MoreVertical, Calendar } from "lucide-react";
+import { Pencil, Search, Plus, ArrowLeft, Copy, BookOpen, Users, MoreVertical, Calendar, FileText, Code } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DropdownMenu,
@@ -692,6 +692,67 @@ export default function ClassroomDetails() {
             )}
           </motion.div>
         </AnimatePresence>
+
+        {/* Assignment Management Section */}
+        <div className="mt-12 pt-8 border-t">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Manage Assignments</h2>
+              <p className="text-muted-foreground">Create and manage assignments for this classroom</p>
+            </div>
+            
+            <Button asChild className="gap-2">
+              <Link to={`/teacher/assignments/create?classId=${classroomId}`}>
+                <Plus className="h-4 w-4" /> Create New Assignment
+              </Link>
+            </Button>
+          </div>
+
+          {/* Assignment List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+            {/* We'll fetch and display assignments here in a future implementation */}
+            <Card className="relative overflow-hidden border-primary/50">
+              <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle>Assignment Example</CardTitle>
+                  <div className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">
+                    Python
+                  </div>
+                </div>
+                <CardDescription>Last updated: {new Date().toLocaleDateString()}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="line-clamp-2 mb-2">This is an example of how assignments will appear. Create a new assignment to get started.</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Code className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">4 Modules</span>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button variant="ghost" disabled>View Details</Button>
+                <Button variant="outline" disabled>
+                  <FileText className="h-4 w-4 mr-2" /> Edit
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="h-full flex flex-col justify-center items-center p-6 border-dashed">
+              <div className="rounded-full bg-primary/10 p-3 mb-4">
+                <Plus className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-medium mb-2">Create Assignment</h3>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Add coding assignments for your students
+              </p>
+              <Button asChild>
+                <Link to={`/teacher/assignments/create?classId=${classroomId}`}>
+                  Get Started
+                </Link>
+              </Button>
+            </Card>
+          </div>
+        </div>
       </main>
       
       {/* Edit Batch Dialog */}
