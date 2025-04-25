@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SandboxModal } from "@/components/SandboxModal";
 
 // Update API URL to use port 5000 instead of 8080
 const API_BASE_URL = 'http://localhost:5000';
@@ -33,6 +34,8 @@ export default function Assignment() {
   const [showPanels, setShowPanels] = useState(true);
   const [output, setOutput] = useState("");
   const [completedModules, setCompletedModules] = useState<string[]>([]);
+  const [preparingSandbox, setPreparingSandbox] = useState(false);
+  const [sandboxReady, setSandboxReady] = useState(false);
   
   // Check if we're in preview mode
   const isPreviewMode = location.pathname.includes('/preview/');
@@ -255,6 +258,56 @@ export default function Assignment() {
     }
   };
 
+  // Add a new effect to create sandbox for preview mode
+  useEffect(() => {
+    // Only set up sandbox in preview mode and when we have the assignment data
+    if (isPreviewMode && assignment && !sandboxReady) {
+      setupPreviewSandbox();
+    }
+  }, [isPreviewMode, assignment]);
+
+  // New function to set up sandbox for teacher preview
+  const setupPreviewSandbox = async () => {
+    try {
+      setPreparingSandbox(true);
+      console.log("Setting up preview sandbox for assignment:", id);
+      
+      const response = await fetch("http://localhost:8000/create/assignment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assignment_name: id,
+          language: assignment.language || "python",
+          requirements: assignment.requirements || [],
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log("Preview sandbox created successfully");
+        setSandboxReady(true);
+        toast({
+          title: "Preview Environment Ready",
+          description: "Your teacher preview sandbox has been prepared",
+        });
+      } else {
+        throw new Error(data.detail || "Failed to create preview sandbox");
+      }
+    } catch (error) {
+      console.error("Error creating preview sandbox:", error);
+      toast({
+        title: "Sandbox Error",
+        description: "Failed to prepare the preview environment. Some features may not work.",
+        variant: "destructive",
+      });
+    } finally {
+      setPreparingSandbox(false);
+    }
+  };
+
   const handleRunCode = async () => {
     if (!assignment) return;
     
@@ -264,6 +317,16 @@ export default function Assignment() {
     try {
       // Preprocess the code to remove <editable> and </editable> tags
       const processedCode = code.replace(/<editable>|<\/editable>/g, '');
+      
+      // Check if we're in preview mode but sandbox isn't ready
+      if (isPreviewMode && !sandboxReady) {
+        // Try to set up sandbox if not ready yet
+        await setupPreviewSandbox();
+        // If still not ready, throw error
+        if (!sandboxReady) {
+          throw new Error("Preview environment not ready. Please try again.");
+        }
+      }
       
       // Execute the code via your API
       const response = await fetch("http://localhost:8000/execute/code", {
@@ -471,6 +534,12 @@ export default function Assignment() {
           showRight={showPanels}
         />
       </main>
+      <SandboxModal 
+        isOpen={preparingSandbox} 
+        onOpenChange={(open) => {
+          if (!open) setPreparingSandbox(false);
+        }} 
+      />
     </div>
   );
 }
