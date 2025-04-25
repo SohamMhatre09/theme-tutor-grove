@@ -1752,6 +1752,58 @@ app.post('/api/batches/:id/leave', authenticateToken, async (req, res) => {
   }
 });
 
+// Get teacher statistics for dashboard
+app.get('/api/teacher/stats', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Access denied. Only teachers can access these statistics.' });
+    }
+
+    // Find all classes taught by this teacher
+    const classes = await Class.find({ teacher: req.user.id });
+    const classIds = classes.map(c => c._id);
+    
+    // Find all batches in these classes
+    const batches = await Batch.find({ class: { $in: classIds } });
+    const totalBatches = batches.length;
+    
+    // Count unique students across all batches
+    const studentSets = new Set();
+    batches.forEach(batch => {
+      batch.students.forEach(studentId => {
+        studentSets.add(studentId.toString());
+      });
+    });
+    const totalStudents = studentSets.size;
+    
+    // Find all assignments for these classes
+    const assignments = await Assignment.find({ class: { $in: classIds } });
+    const assignmentIds = assignments.map(a => a._id);
+    
+    // Find all student assignments for these assignments
+    const studentAssignments = await StudentAssignment.find({
+      assignment: { $in: assignmentIds }
+    });
+    
+    // Count active assignments (ones that have been started but not completed)
+    const activeAssignments = studentAssignments.filter(sa => sa.status === 'in-progress').length;
+    
+    // Count pending reviews (completed assignments)
+    const pendingReviews = studentAssignments.filter(sa => sa.status === 'completed').length;
+    
+    res.status(200).json({
+      totalStudents,
+      totalBatches,
+      activeAssignments,
+      pendingReviews
+    });
+  } catch (error) {
+    console.error('Fetch teacher stats error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Welcome to the User API');
 });

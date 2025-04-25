@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { TeacherIndicator } from "@/components/TeacherIndicator";
+import axios from "axios";
 
 export default function TeacherDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -20,21 +21,40 @@ export default function TeacherDashboard() {
     activeAssignments: 0,
     pendingReviews: 0
   });
+  const [error, setError] = useState("");
   
   useEffect(() => {
-    // Simulate fetching teacher stats
-    const timer = setTimeout(() => {
-      setStats({
-        totalStudents: 23,
-        totalBatches: 2,
-        activeAssignments: 5,
-        pendingReviews: 8
-      });
-      setIsLoading(false);
-    }, 1000);
+    // Fetch actual teacher statistics from the API
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+        
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/teacher/stats`, 
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+        
+        setStats(response.data);
+      } catch (err) {
+        console.error("Failed to fetch teacher stats:", err);
+        setError("Failed to load dashboard statistics. Please try again later.");
+        // Set default values in case of error
+        setStats({
+          totalStudents: 0,
+          totalBatches: 0,
+          activeAssignments: 0,
+          pendingReviews: 0
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return () => clearTimeout(timer);
-  }, []);
+    fetchStats();
+  }, [token]);
 
   return (
     <div className="min-h-screen bg-background">
