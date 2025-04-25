@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Code, FileText, Trash2, Edit, Users, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Code, FileText, Trash2, Edit, Users, CheckCircle, Clock, AlertTriangle, Play, Eye } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,6 +98,11 @@ export default function AssignmentManagement() {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }
+  };
+
+  // Handle preview assignment - takes teacher to student view in preview mode
+  const handlePreviewAssignment = () => {
+    navigate(`/assignments/preview/${assignmentId}`);
   };
 
   const renderStats = () => {
@@ -220,7 +225,14 @@ export default function AssignmentManagement() {
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="default" 
+              className="gap-2" 
+              onClick={handlePreviewAssignment}
+            >
+              <Eye className="h-4 w-4" /> Try It Out
+            </Button>
             <Button 
               variant="outline" 
               className="gap-2" 

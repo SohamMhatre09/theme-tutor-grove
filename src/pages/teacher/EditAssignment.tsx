@@ -38,7 +38,13 @@ import {
   Sparkles,
 } from "lucide-react";
 import axios from "axios";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 
 const API_BASE_URL = "http://localhost:5000/api";
@@ -72,7 +78,8 @@ export default function EditAssignment() {
   const [newRequirement, setNewRequirement] = useState<string>("");
   const [newHint, setNewHint] = useState<string>("");
   const [classId, setClassId] = useState<string>("");
-
+  const [showPreviewConfirm, setShowPreviewConfirm] = useState<boolean>(false);
+  
   // Initialize form data with default values
   const [formData, setFormData] = useState<AssignmentFormData>({
     title: "",
@@ -130,6 +137,63 @@ export default function EditAssignment() {
       });
       // If assignment not found, redirect to classrooms
       navigate("/teacher/classrooms");
+    }
+  };
+
+  // Handle preview button click
+  const handlePreview = () => {
+    // Show confirmation dialog before saving and previewing
+    setShowPreviewConfirm(true);
+  };
+
+  // Handle confirmation of preview
+  const handlePreviewConfirm = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+
+      // Save the current changes first
+      await axios.put(
+        `${API_BASE_URL}/assignments/${assignmentId}`,
+        {
+          title: formData.title,
+          description: formData.description,
+          language: formData.language,
+          requirements: formData.requirements,
+          modules: formData.modules,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      toast({
+        title: "Success",
+        description: "Changes saved successfully. Opening preview...",
+      });
+
+      // Close the dialog
+      setShowPreviewConfirm(false);
+      
+      // Navigate to the preview page with the correct path
+      navigate(`/teacher/assignments/${assignmentId}/preview`);
+    } catch (error) {
+      console.error("Error saving assignment for preview:", error);
+      toast({
+        title: "Error",
+        description:
+          (error as any).response?.data?.message ||
+          "Failed to save changes. Please try again.",
+        variant: "destructive",
+      });
+      setShowPreviewConfirm(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -701,7 +765,7 @@ export default function EditAssignment() {
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-4 mt-6">
+            <div className="flex justify-between gap-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
@@ -709,15 +773,27 @@ export default function EditAssignment() {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                onClick={handleSubmit}
-                className="gap-2"
-                disabled={isSubmitting}
-              >
-                <Save className="h-4 w-4" />
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={handlePreview}
+                  variant="secondary"
+                  className="gap-2"
+                  disabled={isSubmitting}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  Try It Out
+                </Button>
+                <Button
+                  type="submit"
+                  onClick={handleSubmit}
+                  className="gap-2"
+                  disabled={isSubmitting}
+                >
+                  <Save className="h-4 w-4" />
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -835,6 +911,24 @@ export default function EditAssignment() {
           </div>
         </div>
       </main>
+
+      {/* Dialog to confirm preview and save changes */}
+      <Dialog open={showPreviewConfirm} onOpenChange={setShowPreviewConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Preview Assignment</DialogTitle>
+            <DialogDescription>
+              Your changes will be saved before opening the preview. In preview mode, you'll see the assignment exactly as your students will, and can test all functionality.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => setShowPreviewConfirm(false)}>Cancel</Button>
+            <Button onClick={handlePreviewConfirm} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save & Preview"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { 
   getAssignmentById, 
   getUserCode, 
@@ -11,10 +11,11 @@ import { InstructionPanel } from "@/components/InstructionPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ResizableLayout } from "@/components/ResizableLayout";
-import { ArrowLeft, LayoutPanelLeft } from "lucide-react";
+import { ArrowLeft, LayoutPanelLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { OutputPanel } from "@/components/OutputPanel";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Update API URL to use port 5000 instead of 8080
 const API_BASE_URL = 'http://localhost:5000';
@@ -22,6 +23,7 @@ const API_BASE_URL = 'http://localhost:5000';
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [assignment, setAssignment] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -31,36 +33,56 @@ export default function Assignment() {
   const [showPanels, setShowPanels] = useState(true);
   const [output, setOutput] = useState("");
   const [completedModules, setCompletedModules] = useState<string[]>([]);
+  
+  // Check if we're in preview mode
+  const isPreviewMode = location.pathname.includes('/preview/');
 
   useEffect(() => {
-    if (id) {
-      // Fetch the assignment data
-      fetch(`http://localhost:5000/api/assignments/${id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+    if (!id) return;
+    
+    // Fetch the assignment data
+    let assignmentId = id;
+    
+    // In preview mode, use the actual ID without modifying it
+    // The id is already correctly extracted from the URL parameter
+    const endpoint = isPreviewMode 
+      ? `${API_BASE_URL}/api/assignments/${assignmentId}`
+      : `${API_BASE_URL}/api/assignments/${assignmentId}`;
+
+    console.log("Fetching assignment from:", endpoint);
+    
+    fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
       })
-        .then(response => response.json())
-        .then(data => {
-          if (data && data._id) {
-            setAssignment(data);
-            // Initialize with first module's code
-            if (data.modules && data.modules.length > 0) {
-              setCode(data.modules[0].codeTemplate || "");
-            }
-            
-            // Fetch completed modules from the server instead of localStorage
-            fetchCompletedModules(id);
-          } else {
-            setError("Assignment not found");
+      .then(data => {
+        if (data && data._id) {
+          setAssignment(data);
+          // Initialize with first module's code
+          if (data.modules && data.modules.length > 0) {
+            setCode(data.modules[0].codeTemplate || "");
           }
-        })
-        .catch(err => {
-          console.error("Error fetching assignment:", err);
-          setError("Failed to load assignment");
-        });
-    }
-  }, [id]);
+          
+          // Fetch completed modules from the server unless in preview mode
+          if (!isPreviewMode) {
+            fetchCompletedModules(assignmentId);
+          }
+        } else {
+          setError("Assignment not found");
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching assignment:", err);
+        setError(`Failed to load assignment: ${err.message}`);
+      });
+  }, [id, isPreviewMode]);
   
   // New function to fetch completed modules from the server
   const fetchCompletedModules = async (assignmentId: string) => {
@@ -105,6 +127,18 @@ export default function Assignment() {
   // Updated markModuleAsCompleted function to use the server instead of localStorage
   const markModuleAsCompleted = async (moduleId: string) => {
     if (!completedModules.includes(moduleId)) {
+      // In preview mode, just update the local state without API calls
+      if (isPreviewMode) {
+        const updatedModules = [...completedModules, moduleId];
+        setCompletedModules(updatedModules);
+        
+        toast({
+          title: "Progress saved!",
+          description: "Module marked as complete in preview mode.",
+        });
+        return;
+      }
+
       try {
         console.log('Marking module as completed:', moduleId);
         console.log('API URL:', `${API_BASE_URL}/api/assignments/${id}/modules/${moduleId}/complete`);
@@ -168,33 +202,43 @@ export default function Assignment() {
 
   const handleModuleChange = (moduleIndex) => {
     if (assignment && assignment.modules && assignment.modules[moduleIndex]) {
-      // Check if trying to access a locked module
-      if (moduleIndex > 0 && moduleIndex > currentStepIndex + 1) {
-        const previousModules = assignment.modules.slice(0, moduleIndex);
-        const allPreviousCompleted = previousModules.every(module => 
-          completedModules.includes(module.id.toString())
-        );
-        
-        if (!allPreviousCompleted) {
-          toast({
-            title: "Module locked",
-            description: "You need to complete previous modules first",
-            variant: "destructive"
-          });
-          return;
+      // Skip lock check in preview mode
+      if (!isPreviewMode) {
+        // Check if trying to access a locked module
+        if (moduleIndex > 0 && moduleIndex > currentStepIndex + 1) {
+          const previousModules = assignment.modules.slice(0, moduleIndex);
+          const allPreviousCompleted = previousModules.every(module => 
+            completedModules.includes(module.id.toString())
+          );
+          
+          if (!allPreviousCompleted) {
+            toast({
+              title: "Module locked",
+              description: "You need to complete previous modules first",
+              variant: "destructive"
+            });
+            return;
+          }
         }
       }
       
       // Save current code before changing modules
-      saveUserCode(id, assignment.modules[currentStepIndex].id, code);
+      if (!isPreviewMode) {
+        saveUserCode(id, assignment.modules[currentStepIndex].id, code);
+      }
       
       setCurrentStepIndex(moduleIndex);
       
       // Load code for the new module
-      const savedCode = getUserCode(id, assignment.modules[moduleIndex].id);
-      if (savedCode) {
-        setCode(savedCode);
+      if (!isPreviewMode) {
+        const savedCode = getUserCode(id, assignment.modules[moduleIndex].id);
+        if (savedCode) {
+          setCode(savedCode);
+        } else {
+          setCode(assignment.modules[moduleIndex].codeTemplate || "");
+        }
       } else {
+        // In preview mode, always load the template code
         setCode(assignment.modules[moduleIndex].codeTemplate || "");
       }
       
@@ -206,7 +250,7 @@ export default function Assignment() {
   const handleCodeChange = (newCode) => {
     setCode(newCode);
     // Auto-save code
-    if (assignment) {
+    if (assignment && !isPreviewMode) {
       saveUserCode(id, assignment.modules[currentStepIndex].id, newCode);
     }
   };
@@ -229,7 +273,7 @@ export default function Assignment() {
         },
         body: JSON.stringify({ 
           assignment_name: id,
-          language: "python", 
+          language: assignment.language || "python", 
           code: processedCode
         }),
       });
@@ -283,11 +327,27 @@ export default function Assignment() {
 
   // Function to handle final submission
   const handleFinalSubmit = () => {
+    // In preview mode, show a different message
+    if (isPreviewMode) {
+      toast({
+        title: "Preview Mode",
+        description: "In student mode, this would submit the assignment for grading.",
+      });
+      // Navigate back to the assignment management page
+      navigate(`/teacher/assignments/${id}`);
+      return;
+    }
+
     toast({
       title: "Assignment Completed!",
       description: "Congratulations! You've successfully completed this assignment.",
     });
     // Here you would typically send a request to your backend to mark the assignment as completed
+  };
+
+  const handleExitPreview = () => {
+    // Navigate back to the assignment management page
+    navigate(`/teacher/assignments/${id}`);
   };
 
   if (error) {
@@ -320,14 +380,14 @@ export default function Assignment() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate("/")}
+              onClick={() => isPreviewMode ? handleExitPreview() : navigate("/")}
               className="rounded-full"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <BreadcrumbNav
               items={[
-                { label: "Assignments", href: "/" },
+                { label: isPreviewMode ? "Teacher Preview" : "Assignments", href: isPreviewMode ? "#" : "/" },
                 { label: assignment.title },
                 { label: currentModule.title },
               ]}
@@ -349,6 +409,26 @@ export default function Assignment() {
       </header>
 
       <main className="flex-1 overflow-hidden">
+        {isPreviewMode && (
+          <div className="container pt-2">
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Teacher Preview Mode</AlertTitle>
+              <AlertDescription>
+                You are viewing this assignment as a student would see it. Your progress won't be saved to the database.
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="ml-4" 
+                  onClick={handleExitPreview}
+                >
+                  Exit Preview
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         <ResizableLayout
           leftContent={
             showPanels && (
