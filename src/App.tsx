@@ -31,6 +31,8 @@ const TeacherDashboard = lazy(() => import("./pages/teacher/Dashboard"));
 const ClassroomManagement = lazy(() => import("./pages/teacher/ClassroomManagement"));
 const ClassroomDetails = lazy(() => import("./pages/teacher/ClassroomDetails"));
 const CreateAssignment = lazy(() => import("./pages/teacher/CreateAssignment"));
+const AssignmentManagement = lazy(() => import("./pages/teacher/AssignmentManagement"));
+const EditAssignment = lazy(() => import("./pages/teacher/EditAssignment"));
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -92,7 +94,19 @@ const App = () => (
                 } />
                 <Route path="/teacher/assignments/create" element={
                   <TeacherRoute>
-                  <CreateAssignment />
+                    <CreateAssignment />
+                  </TeacherRoute>
+                } />
+                
+                {/* Assignment management routes */}
+                <Route path="/teacher/assignments/:assignmentId" element={
+                  <TeacherRoute>
+                    <AssignmentManagement />
+                  </TeacherRoute>
+                } />
+                <Route path="/teacher/assignments/:assignmentId/edit" element={
+                  <TeacherRoute>
+                    <EditAssignment />
                   </TeacherRoute>
                 } />
                 

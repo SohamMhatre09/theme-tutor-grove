@@ -63,7 +63,10 @@ export default function ClassroomDetails() {
   const [isViewStudentsDialogOpen, setIsViewStudentsDialogOpen] = useState(false);
   const [batchStudents, setBatchStudents] = useState([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
-  
+  // Assignment List Section
+  const [assignments, setAssignments] = useState([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+
   // Function to fetch classroom details
   const fetchClassroomDetails = async () => {
     setIsLoading(true);
@@ -141,11 +144,48 @@ export default function ClassroomDetails() {
     }
   };
 
+  // Fetch assignments for this classroom
+  const fetchAssignments = async () => {
+    if (!classroomId) return;
+    
+    setIsLoadingAssignments(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No authentication token found");
+
+      const response = await axios.get(
+        `${API_BASE_URL}/classes/${classroomId}/assignments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      setAssignments(response.data);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch assignments",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAssignments(false);
+    }
+  };
+
   useEffect(() => {
     if (classroomId) {
       fetchClassroomDetails();
     }
   }, [classroomId, navigate]);
+
+  useEffect(() => {
+    if (classroomId && !isLoading) {
+      fetchAssignments();
+    }
+  }, [classroomId, isLoading]);
 
   const handleCreateBatch = async (e) => {
     e.preventDefault();
@@ -710,47 +750,93 @@ export default function ClassroomDetails() {
 
           {/* Assignment List */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {/* We'll fetch and display assignments here in a future implementation */}
-            <Card className="relative overflow-hidden border-primary/50">
-              <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle>Assignment Example</CardTitle>
-                  <div className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">
-                    Python
-                  </div>
-                </div>
-                <CardDescription>Last updated: {new Date().toLocaleDateString()}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="line-clamp-2 mb-2">This is an example of how assignments will appear. Create a new assignment to get started.</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Code className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">4 Modules</span>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="ghost" disabled>View Details</Button>
-                <Button variant="outline" disabled>
-                  <FileText className="h-4 w-4 mr-2" /> Edit
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="h-full flex flex-col justify-center items-center p-6 border-dashed">
-              <div className="rounded-full bg-primary/10 p-3 mb-4">
-                <Plus className="h-6 w-6 text-primary" />
+            {isLoadingAssignments ? (
+              <div className="col-span-full flex justify-center py-8">
+                <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
-              <h3 className="font-medium mb-2">Create Assignment</h3>
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                Add coding assignments for your students
-              </p>
-              <Button asChild>
-                <Link to={`/teacher/assignments/create?classId=${classroomId}`}>
-                  Get Started
-                </Link>
-              </Button>
-            </Card>
+            ) : assignments.length > 0 ? (
+              <>
+                {assignments.map((assignment) => (
+                  <Card key={assignment._id} className="relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="line-clamp-1">{assignment.title}</CardTitle>
+                        <div className="bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium">
+                          {assignment.language}
+                        </div>
+                      </div>
+                      <CardDescription>
+                        Created: {new Date(assignment.createdAt).toLocaleDateString()}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="line-clamp-2 text-muted-foreground mb-2">{assignment.description}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Code className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{assignment.modules.length} Modules</span>
+                      </div>
+                      {assignment.requirements && assignment.requirements.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {assignment.requirements.slice(0, 3).map((req, index) => (
+                            <span key={index} className="bg-secondary/30 text-xs px-1.5 py-0.5 rounded">
+                              {req}
+                            </span>
+                          ))}
+                          {assignment.requirements.length > 3 && (
+                            <span className="bg-secondary/30 text-xs px-1.5 py-0.5 rounded">
+                              +{assignment.requirements.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                      <Button variant="ghost" asChild>
+                        <Link to={`/teacher/assignments/${assignment._id}`}>View Details</Link>
+                      </Button>
+                      <Button variant="outline" asChild>
+                        <Link to={`/teacher/assignments/${assignment._id}/edit`}>
+                          <FileText className="h-4 w-4 mr-2" /> Edit
+                        </Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+
+                <Card className="h-full flex flex-col justify-center items-center p-6 border-dashed">
+                  <div className="rounded-full bg-primary/10 p-3 mb-4">
+                    <Plus className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="font-medium mb-2">Create Assignment</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Add another coding assignment for your students
+                  </p>
+                  <Button asChild>
+                    <Link to={`/teacher/assignments/create?classId=${classroomId}`}>
+                      Create Assignment
+                    </Link>
+                  </Button>
+                </Card>
+              </>
+            ) : (
+              <>
+                <Card className="h-full flex flex-col justify-center items-center p-6 border-dashed">
+                  <div className="rounded-full bg-primary/10 p-3 mb-4">
+                    <Plus className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="font-medium mb-2">Create Assignment</h3>
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    Add coding assignments for your students
+                  </p>
+                  <Button asChild>
+                    <Link to={`/teacher/assignments/create?classId=${classroomId}`}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </Card>
+              </>
+            )}
           </div>
         </div>
       </main>

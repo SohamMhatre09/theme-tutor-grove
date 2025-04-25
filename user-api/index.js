@@ -1314,17 +1314,24 @@ app.get('/api/classes/:classId/assignments', authenticateToken, async (req, res)
   }
 });
 
-// Get a specific assignment
+// Get a specific assignment by ID with details
 app.get('/api/assignments/:id', authenticateToken, async (req, res) => {
   try {
-    const assignment = await Assignment.findById(req.params.id);
+    const assignment = await Assignment.findById(req.params.id).populate({
+      path: 'class',
+      select: 'name subject description',
+      populate: {
+        path: 'teacher',
+        select: 'username email'
+      }
+    });
     
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
     // Get the class to check permissions
-    const classItem = await Class.findById(assignment.class);
+    const classItem = await Class.findById(assignment.class._id);
     
     // For teachers, check if they own the class
     if (req.user.role === 'teacher' && classItem.teacher.toString() !== req.user.id) {
@@ -1334,7 +1341,7 @@ app.get('/api/assignments/:id', authenticateToken, async (req, res) => {
     // For students, check if they are enrolled in any batch of this class
     if (req.user.role === 'student') {
       const enrolledBatch = await Batch.findOne({
-        class: assignment.class,
+        class: assignment.class._id,
         students: req.user.id
       });
       
@@ -1343,9 +1350,121 @@ app.get('/api/assignments/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // If teacher, include student submission statistics
+    if (req.user.role === 'teacher') {
+      // Get all batches for this class
+      const batches = await Batch.find({ class: assignment.class._id });
+      
+      // Get all student IDs across all batches
+      const studentIds = batches.reduce((ids, batch) => {
+        return [...ids, ...batch.students.map(id => id.toString())];
+      }, []);
+      
+      // Get student assignments for these students
+      const studentAssignments = await StudentAssignment.find({
+        student: { $in: studentIds },
+        assignment: assignment._id
+      });
+      
+      // Calculate statistics
+      const stats = {
+        totalStudents: studentIds.length,
+        submitted: studentAssignments.filter(sa => sa.status === 'completed').length,
+        inProgress: studentAssignments.filter(sa => sa.status === 'in-progress').length,
+        notStarted: studentAssignments.filter(sa => sa.status === 'assigned').length,
+        submissions: studentAssignments
+      };
+      
+      // Add statistics to the response
+      const result = assignment.toObject();
+      result.stats = stats;
+      return res.status(200).json(result);
+    }
+
     res.status(200).json(assignment);
   } catch (error) {
     console.error('Fetch assignment error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update an assignment
+app.put('/api/assignments/:id', authenticateToken, async (req, res) => {
+  try {
+    const assignmentId = req.params.id;
+    const { title, description, language, requirements, modules } = req.body;
+    
+    const assignment = await Assignment.findById(assignmentId).populate('class');
+    
+    if (!assignment) {
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
+    
+    // Check if the authenticated user is the teacher who created this assignment
+    const classItem = await Class.findById(assignment.class._id);
+    
+    if (!classItem) {
+      return res.status(404).json({ message: 'Associated class not found' });
+    }
+    
+    // Only allow teachers who own the class to update the assignment
+    if (req.user.role !== 'teacher' || classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to update this assignment' });
+    }
+    
+    // Update the assignment
+    const updatedAssignment = await Assignment.findByIdAndUpdate(
+      assignmentId,
+      {
+        title,
+        description,
+        language,
+        requirements,
+        modules,
+        updatedAt: Date.now()
+      },
+      { new: true }
+    );
+    
+    res.status(200).json(updatedAssignment);
+  } catch (error) {
+    console.error('Update assignment error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Delete an assignment
+app.delete('/api/assignments/:id', authenticateToken, async (req, res) => {
+  try {
+    const assignmentId = req.params.id;
+    
+    const assignment = await Assignment.findById(assignmentId).populate('class');
+    
+    if (!assignment) {
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
+    
+    // Check if the authenticated user is the teacher who created this assignment
+    const classItem = await Class.findById(assignment.class._id);
+    
+    if (!classItem) {
+      return res.status(404).json({ message: 'Associated class not found' });
+    }
+    
+    // Only allow teachers who own the class to delete the assignment
+    if (req.user.role !== 'teacher' || classItem.teacher.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to delete this assignment' });
+    }
+    
+    // Delete any student assignments related to this assignment
+    await StudentAssignment.deleteMany({ assignment: assignmentId });
+    
+    // Delete the assignment itself
+    await Assignment.findByIdAndDelete(assignmentId);
+    
+    res.status(200).json({ message: 'Assignment deleted successfully' });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
