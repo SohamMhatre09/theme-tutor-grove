@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { TeacherRoute } from "@/components/TeacherRoute";
+import { StudentRoute } from "@/components/StudentRoute";
 import NotFound from "./pages/NotFound";
 import { lazy, Suspense } from "react";
 
@@ -50,9 +51,9 @@ const App = () => (
                 
                 {/* Student routes */}
                 <Route path="/dashboard" element={
-                  <ProtectedRoute>
+                  <StudentRoute>
                     <Dashboard />
-                  </ProtectedRoute>
+                  </StudentRoute>
                 } />
                 <Route path="/profile" element={
                   <ProtectedRoute>
@@ -60,14 +61,14 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 <Route path="/assignments/:id" element={
-                  <ProtectedRoute>
+                  <StudentRoute>
                     <Assignment />
-                  </ProtectedRoute>
+                  </StudentRoute>
                 } />
                 <Route path="/batches/:batchId" element={
-                  <ProtectedRoute>
+                  <StudentRoute>
                     <BatchDetails />
-                  </ProtectedRoute>
+                  </StudentRoute>
                 } />
                 
                 {/* Teacher-specific routes */}
