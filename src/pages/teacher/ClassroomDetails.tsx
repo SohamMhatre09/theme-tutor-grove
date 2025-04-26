@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import axios from "axios";
-
-const API_BASE_URL = "http://localhost:5000/api"; // Update this with your actual API URL
+import { API_URL } from "@/config";
+const API_BASE_URL = `${API_URL}/api`; // Update this with your actual API URL
 
 export default function ClassroomDetails() {
   const { classroomId } = useParams();

@@ -18,8 +18,8 @@ import { OutputPanel } from "@/components/OutputPanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SandboxModal } from "@/components/SandboxModal";
 
-// Update API URL to use port 5000 instead of 8080
-const API_BASE_URL = 'http://localhost:5000';
+import { API_URL } from "@/config";
+const API_BASE_URL = `${API_URL}`;
 
 export default function Assignment() {
   const { id } = useParams<{ id: string }>();

@@ -20,7 +20,8 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 
-const API_BASE_URL = "http://localhost:5000/api";
+import { API_URL } from "@/config";
+const API_BASE_URL = `${API_URL}/api`;
 
 export default function AssignmentManagement() {
   const { assignmentId } = useParams();

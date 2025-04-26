@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
+import { API_URL } from "@/config";
 // Add import for AlertDialog components
 import { 
   AlertDialog,
@@ -201,7 +202,7 @@ export default function Dashboard() {
     // Fetch enrolled batches
     const fetchEnrolledBatches = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/batches/enrolled', {
+        const response = await fetch(`${API_URL}/api/batches/enrolled`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -219,7 +220,7 @@ export default function Dashboard() {
     // Fetch student assignments
     const fetchStudentAssignments = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/student/assignments', {
+        const response = await fetch(`${API_URL}/api/student/assignments`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -258,7 +259,7 @@ export default function Dashboard() {
 
     setIsEnrolling(true);
     try {
-      const response = await fetch('http://localhost:5000/api/batches/enroll', {
+      const response = await fetch(`${API_URL}/api/batches/enroll` , {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -303,7 +304,7 @@ export default function Dashboard() {
     
     setIsLeavingBatch(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/batches/${selectedBatchToLeave}/leave`, {
+      const response = await fetch(`${API_URL}/api/batches/${selectedBatchToLeave}/leave`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

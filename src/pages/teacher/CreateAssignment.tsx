@@ -68,8 +68,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
-
-const API_BASE_URL = "http://localhost:5000/api";
+import { API_URL } from "@/config";
+const API_BASE_URL = `${API_URL}/api`;
 
 // Define interfaces for our data structures
 interface Module {

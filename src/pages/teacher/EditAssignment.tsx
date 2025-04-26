@@ -46,8 +46,8 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
-
-const API_BASE_URL = "http://localhost:5000/api";
+import { API_URL } from "@/config";
+const API_BASE_URL = `${API_URL}/api`;
 
 // Define interfaces for our data structures
 interface Module {

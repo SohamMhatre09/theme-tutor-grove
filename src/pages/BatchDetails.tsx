@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { SandboxModal } from "@/components/SandboxModal";
 import { useToast } from "@/components/ui/use-toast";
-
+import { API_URL } from "@/config";
 export default function BatchDetails() {
   const { batchId } = useParams();
   const [batch, setBatch] = useState(null);
@@ -20,12 +20,12 @@ export default function BatchDetails() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [assignment, setAssignment] = useState(null);
-
+  
   useEffect(() => {
     const fetchBatchDetails = async () => {
       try {
         // Fetch batch details
-        const batchResponse = await fetch(`http://localhost:5000/api/batches/${batchId}`, {
+        const batchResponse = await fetch(`${API_URL}/api/batches/${batchId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -53,7 +53,7 @@ export default function BatchDetails() {
           setAssignments(batchData.assignments);
         } else {
           // Otherwise fetch assignments separately
-          const assignmentsResponse = await fetch(`http://localhost:5000/api/classes/${batchData.class._id}/assignments`, {
+          const assignmentsResponse = await fetch(`${API_URL}/api/classes/${batchData.class._id}/assignments`, {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
@@ -85,7 +85,7 @@ export default function BatchDetails() {
     
     try {
 
-      fetch(`http://localhost:5000/api/assignments/${assignmentId}`, {
+      fetch(`${API_URL}/api/assignments/${assignmentId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },

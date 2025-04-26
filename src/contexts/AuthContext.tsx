@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, ReactNode, useEffect } from "react";
-
+import { API_URL } from "@/config";
 interface User {
   id: string;
   username: string;
