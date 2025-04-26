@@ -680,7 +680,7 @@ export default function Landing() {
                   <ul className="space-y-2">
                     <li className="flex items-start gap-2">
                       <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>100+ premium assignments</span>
+                      <span>100+ premium assignment</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
