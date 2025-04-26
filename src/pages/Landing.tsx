@@ -625,7 +625,7 @@ export default function Landing() {
                   <CardTitle>Free</CardTitle>
                   <CardDescription>For beginners exploring coding</CardDescription>
                   <div className="mt-4">
-                    <span className="text-3xl font-bold">$0</span>
+                    <span className="text-3xl font-bold">₹ 0</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 </CardHeader>
@@ -668,7 +668,7 @@ export default function Landing() {
                   <CardDescription>For serious learners</CardDescription>
                   <div className="mt-4">
                     <span className="text-3xl font-bold">
-                      ${activePricingTab === "monthly" ? "29" : "23"}
+                      ₹ {activePricingTab === "monthly" ? "199" : "159"}
                     </span>
                     <span className="text-muted-foreground">/month</span>
                     {activePricingTab === "annual" && (
@@ -716,7 +716,7 @@ export default function Landing() {
                   <CardDescription>For teams and organizations</CardDescription>
                   <div className="mt-4">
                     <span className="text-3xl font-bold">
-                      ${activePricingTab === "monthly" ? "99" : "79"}
+                      ₹ {activePricingTab === "monthly" ? "99" : "79"}
                     </span>
                     <span className="text-muted-foreground">/month</span>
                     {activePricingTab === "annual" && (
