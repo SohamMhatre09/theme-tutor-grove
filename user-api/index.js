@@ -9,13 +9,21 @@ import { dirname } from 'path';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import crypto from 'crypto';
 
 // Load environment variables
 dotenv.config();
-console.log('Environment variables loaded:', {
-  MONGODB_URI: process.env.MONGODB_URI,
-  PORT: process.env.PORT
-});
+
+// Validate required environment variables
+const requiredEnvVars = ['MONGODB_URI', 'PORT', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`ERROR: Required environment variables missing: ${missingEnvVars.join(', ')}`);
+  process.exit(1); // Exit with error code
+}
 
 // Create meta information for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -24,11 +32,30 @@ const __dirname = dirname(__filename);
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(cors());
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Security headers
+app.use(helmet());
+
+// JWT Secret check
+if (process.env.JWT_SECRET === 'your_jwt_secret_key') {
+  console.error('ERROR: Using default JWT_SECRET. This is not secure for production.');
+}
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
 
 // MongoDB Connection
-mongoose.connect("mongodb+srv://user-admin:user-admin@customerservicechat.4uk1s.mongodb.net/?retryWrites=true&w=majority&appName=CustomerServiceChat")
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000 // 5 second timeout for server selection
+})
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
@@ -191,6 +218,71 @@ const Batch = mongoose.model('Batch', batchSchema);
 const Assignment = mongoose.model('Assignment', assignmentSchema);
 const StudentAssignment = mongoose.model('StudentAssignment', studentAssignmentSchema);
 
+// Helper functions for validation
+const validateEmail = (email) => {
+  const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return re.test(String(email).toLowerCase());
+};
+
+const validateUsername = (username) => {
+  // Only allow alphanumeric characters, -, _, and spaces, between 3-30 chars
+  const re = /^[a-zA-Z0-9_\- ]{3,30}$/;
+  return re.test(username);
+};
+
+// Centralized error handler
+const handleError = (error, res) => {
+  console.error('Error:', error);
+  // Don't expose error details in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(500).json({ message: 'An internal server error occurred' });
+  } else {
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Data encryption/decryption utilities using SHA-256
+const encryptionKey = process.env.ENCRYPTION_KEY;
+
+const hashData = (data) => {
+  if (!data) return data;
+  try {
+    const cipher = crypto.createCipher('aes-256-cbc', encryptionKey);
+    let encrypted = cipher.update(data.toString(), 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return encrypted;
+  } catch (error) {
+    console.error('Encryption error:', error);
+    return data; // Return original data if encryption fails
+  }
+};
+
+const unhashData = (data) => {
+  if (!data) return data;
+  try {
+    const decipher = crypto.createDecipher('aes-256-cbc', encryptionKey);
+    let decrypted = decipher.update(data.toString(), 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('Decryption error:', error);
+    return data; // Return original data if decryption fails
+  }
+};
+
+// Rate limiters for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: { message: 'Too many login attempts. Please try again later.' }
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 registration attempts per hour
+  message: { message: 'Too many registration attempts. Please try again later.' }
+});
+
 // JWT Authentication Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -211,7 +303,9 @@ const authenticateToken = (req, res, next) => {
 
 // Routes
 // Register User
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', 
+  (process.env.RATE_LIMITING_ENABLED !== 'false') ? registerLimiter : (req, res, next) => next(), 
+  async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
@@ -225,20 +319,47 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    // Check if username is valid
+    if (!validateUsername(username)) {
+      return res.status(400).json({ message: 'Username can only contain alphanumeric characters, -, _, and spaces, and must be 3-30 characters long.' });
+    }
+
+    // Check if email is valid
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    // Check password strength
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+
+    // Hash sensitive data
+    const hashedEmail = hashData(email);
+
+    // Check if user already exists - search by hashed email
+    const existingUser = await User.findOne({ email: hashedEmail });
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
+    // Hash username
+    const hashedUsername = hashData(username);
+
+    // Check for duplicate username
+    const existingUsername = await User.findOne({ username: hashedUsername });
+    if (existingUsername) {
+      return res.status(400).json({ message: 'Username is already taken' });
+    }
+
     // Hash password
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12); // Increased from 10 to 12 for stronger hashing
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // Create new user with hashed data
     const user = new User({
-      username,
-      email,
+      username: hashedUsername,
+      email: hashedEmail,
       password: hashedPassword,
       role: role || 'student' // Default to student if no role specified
     });
@@ -246,9 +367,9 @@ app.post('/api/auth/register', async (req, res) => {
     // Save user to database
     const savedUser = await user.save();
 
-    // Create JWT token
+    // Create JWT token with unhashed data
     const token = jwt.sign(
-      { id: savedUser._id, username: savedUser.username, role: savedUser.role },
+      { id: savedUser._id, username: username, role: savedUser.role },
       process.env.JWT_SECRET || 'your_jwt_secret_key',
       { expiresIn: '24h' }
     );
@@ -258,19 +379,20 @@ app.post('/api/auth/register', async (req, res) => {
       token,
       user: {
         id: savedUser._id,
-        username: savedUser.username,
-        email: savedUser.email,
+        username: username, // Return original username
+        email: email, // Return original email
         role: savedUser.role
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleError(error, res);
   }
 });
 
 // Login User
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', 
+  (process.env.RATE_LIMITING_ENABLED !== 'false') ? authLimiter : (req, res, next) => next(), 
+  async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
@@ -279,8 +401,16 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Check if user exists
-    const user = await User.findOne({ email });
+    // Check if email is valid format
+    if (!validateEmail(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    // Hash email for database lookup
+    const hashedEmail = hashData(email);
+
+    // Check if user exists with hashed email
+    const user = await User.findOne({ email: hashedEmail });
     if (!user) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
@@ -298,10 +428,13 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Create JWT token
+    // Unhash username before returning
+    const originalUsername = unhashData(user.username);
+    
+    // Create JWT token with unhashed data
     const token = jwt.sign(
-      { id: user._id, username: user.username, role: user.role },
-      process.env.JWT_SECRET || 'your_jwt_secret_key',
+      { id: user._id, username: originalUsername, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -310,14 +443,13 @@ app.post('/api/auth/login', async (req, res) => {
       token,
       user: {
         id: user._id,
-        username: user.username,
-        email: user.email,
+        username: originalUsername,
+        email: email, // Return original email from request
         role: user.role
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return handleError(error, res);
   }
 });
 
@@ -328,10 +460,17 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user);
+
+    // Unhash sensitive data before returning
+    const responseUser = {
+      ...user.toObject(),
+      username: unhashData(user.username),
+      email: unhashData(user.email)
+    };
+
+    res.status(200).json(responseUser);
   } catch (error) {
-    console.error('Profile fetch error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleError(error, res);
   }
 });
 
@@ -367,8 +506,7 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
     res.status(200).json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Password change error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleError(error, res);
   }
 });
 
@@ -377,28 +515,43 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: 'User with this email does not exist' });
+    // Validate email
+    if (!email || !validateEmail(email)) {
+      return res.status(400).json({ message: 'Valid email is required' });
     }
 
-    // Generate password reset token
+    // Find user (but don't reveal if user exists for security)
+    const user = await User.findOne({ email });
+    
+    // Generic response whether user exists or not to prevent email enumeration
+    if (!user) {
+      return res.status(200).json({ 
+        message: 'If your email exists in our system, a reset link has been sent' 
+      });
+    }
+
+    // Generate password reset token with more security
+    // Include part of the hashed password to invalidate token when password changes
+    const tokenData = {
+      id: user._id,
+      version: user.password.substring(0, 10) // This changes when password changes
+    };
+    
     const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_RESET_SECRET || 'your_reset_secret_key',
-      { expiresIn: '1h' }
+      tokenData,
+      process.env.JWT_RESET_SECRET || process.env.JWT_SECRET,
+      { expiresIn: '1h' } // Short expiry time for security
     );
 
-    // In a real application, you would send an email with the reset link
-    // For simplicity, we'll just return the token
+    // In production, send email with reset link
+    // For now, just return the token (remove in production)
+    
     res.status(200).json({ 
-      message: 'Password reset link has been sent to your email',
-      resetToken: token // In production, don't expose this
+      message: 'If your email exists in our system, a reset link has been sent',
+      resetToken: token // Don't include this in production
     });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return handleError(error, res);
   }
 });
 
@@ -436,15 +589,14 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     res.status(200).json({ message: 'Password has been reset successfully' });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    handleError(error, res);
   }
 });
 
 // Assignment Generator Agent
 class AssignmentGeneratorAgent {
   constructor(geminiApiKey) {
-    this.apiKey = geminiApiKey || "AIzaSyAydz2ujm-2rlytilLL6CAylPqujxWbOwU";
+    this.apiKey = geminiApiKey;
     this.geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
   }
 
