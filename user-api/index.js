@@ -212,11 +212,39 @@ const studentAssignmentSchema = new mongoose.Schema({
   }
 });
 
+const analyticsCacheSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  role: {
+    type: String,
+    enum: ['student', 'teacher', 'admin'],
+    required: true
+  },
+  type: {
+    type: String,
+    required: true
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed,
+    required: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    expires: 3600 // Cache expires after 1 hour (3600 seconds)
+  }
+});
+
+// Compound index for faster lookups
+analyticsCacheSchema.index({ userId: 1, role: 1, type: 1 });
 const User = mongoose.model('User', userSchema);
 const Class = mongoose.model('Class', classSchema);
 const Batch = mongoose.model('Batch', batchSchema);
 const Assignment = mongoose.model('Assignment', assignmentSchema);
 const StudentAssignment = mongoose.model('StudentAssignment', studentAssignmentSchema);
+const AnalyticsCache = mongoose.model('AnalyticsCache', analyticsCacheSchema);
 
 // Helper functions for validation
 const validateEmail = (email) => {
@@ -728,34 +756,20 @@ Ensure the JSON is well-formed without any formatting errors.
       assignmentData.requirements = [];
     }
     
-    // Ensure all modules have the required fields
-    for (let i = 0; i < (assignmentData.modules || []).length; i++) {
-      const module = assignmentData.modules[i];
+    for (const module of assignmentData.modules) {
+      module.codeTemplate = module.codeTemplate
+        .replace(/<EDITABLE>/g, "<editable>")
+        .replace(/<\/EDITABLE>/g, "</editable>");
       
-      if (!module.id) {
-        module.id = i + 1;
-      }
-      
-      if (!module.hints || !Array.isArray(module.hints)) {
-        module.hints = [];
-      }
-      
-      if (module.codeTemplate) {
-        // Convert <EDITABLE> to <editable> if needed
-        module.codeTemplate = module.codeTemplate
-          .replace(/<EDITABLE>/g, "<editable>")
-          .replace(/<\/EDITABLE>/g, "</editable>");
-        
-        // Ensure code template has <editable> tags
-        if (!module.codeTemplate.includes("<editable>")) {
-          const lines = module.codeTemplate.split("\n");
-          module.codeTemplate = [
-            lines[0],
-            "<editable>",
-            ...lines.slice(1),
-            "</editable>"
-          ].join("\n");
-        }
+      // Ensure code template has <editable> tags
+      if (!module.codeTemplate.includes("<editable>")) {
+        const lines = module.codeTemplate.split("\n");
+        module.codeTemplate = [
+          lines[0],
+          "<editable>",
+          ...lines.slice(1),
+          "</editable>"
+        ].join("\n");
       }
     }
     
@@ -1956,9 +1970,874 @@ app.get('/api/teacher/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Student Analytics with caching
+app.get('/api/analytics/student', authenticateToken, async (req, res) => {
+  try {
+    // Verify the user is a student
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ message: 'Access denied. Student role required.' });
+    }
+
+    const studentId = req.user.id;
+    const shouldRefresh = req.query.refresh === 'true' || (req.body && req.body.refresh === true);
+    
+    // Check for cached analytics if no refresh requested
+    if (!shouldRefresh) {
+      const cachedAnalytics = await AnalyticsCache.findOne({
+        userId: studentId,
+        role: 'student',
+        type: 'performance'
+      }).sort({ generatedAt: -1 });
+      
+      if (cachedAnalytics) {
+        // Return cached data with timestamp
+        return res.status(200).json({
+          ...cachedAnalytics.data,
+          cachedAt: cachedAnalytics.generatedAt,
+          isCached: true
+        });
+      }
+    }
+    
+    // No cache found or refresh requested - generate new analytics
+    console.log(`Generating fresh analytics for student ${studentId}`);
+    
+    // Get all student assignments
+    const studentAssignments = await StudentAssignment.find({ student: studentId })
+      .populate({
+        path: 'assignment',
+        populate: { path: 'class', select: 'name' }
+      });
+    
+    // Calculate completion time metrics for each module
+    const moduleCompletionTimes = [];
+    const moduleTimeByAssignment = {};
+    const assignmentProgress = {};
+    
+    // Process all submissions to calculate time metrics
+    for (const sa of studentAssignments) {
+      if (!sa.submissions || sa.submissions.length === 0) continue;
+      
+      // Sort submissions by moduleId to ensure chronological order
+      const sortedSubmissions = [...sa.submissions].sort((a, b) => a.moduleId - b.moduleId);
+      
+      // Track the assignment in our progress tracker
+      if (!assignmentProgress[sa.assignment._id]) {
+        assignmentProgress[sa.assignment._id] = {
+          id: sa.assignment._id,
+          title: sa.assignment.title,
+          className: sa.assignment.class ? sa.assignment.class.name : 'Unknown',
+          totalModules: sa.assignment.modules ? sa.assignment.modules.length : 0,
+          completedModules: sortedSubmissions.length,
+          progress: sa.progress,
+          status: sa.status
+        };
+      }
+      
+      // Skip if there's only one submission (can't calculate time difference)
+      if (sortedSubmissions.length <= 1) continue;
+      
+      // Calculate time between modules
+      for (let i = 1; i < sortedSubmissions.length; i++) {
+        const prevSubmission = sortedSubmissions[i-1];
+        const currSubmission = sortedSubmissions[i];
+        
+        // Calculate minutes between submissions
+        const prevDate = new Date(prevSubmission.submittedAt);
+        const currDate = new Date(currSubmission.submittedAt);
+        const minutesTaken = (currDate - prevDate) / (1000 * 60);
+        
+        // Only count reasonable times (between 1 minute and 3 hours)
+        if (minutesTaken >= 1 && minutesTaken <= 180) {
+          moduleCompletionTimes.push({
+            assignmentId: sa.assignment._id,
+            assignmentTitle: sa.assignment.title,
+            moduleId: currSubmission.moduleId,
+            minutesTaken: minutesTaken,
+            submittedAt: currSubmission.submittedAt
+          });
+          
+          // Group by assignment for assignment-level stats
+          if (!moduleTimeByAssignment[sa.assignment._id]) {
+            moduleTimeByAssignment[sa.assignment._id] = [];
+          }
+          moduleTimeByAssignment[sa.assignment._id].push(minutesTaken);
+        }
+      }
+    }
+    
+    // Calculate average completion time per assignment
+    const assignmentAvgTimes = {};
+    for (const [assignmentId, times] of Object.entries(moduleTimeByAssignment)) {
+      if (times.length > 0) {
+        const avgTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+        assignmentAvgTimes[assignmentId] = {
+          avgTimeMinutes: Math.round(avgTime * 10) / 10,
+          modulesWithData: times.length
+        };
+      }
+    }
+    
+    // Get global averages for comparison
+    const allStudentAssignments = await StudentAssignment.find({}).lean();
+    const globalModuleTimes = {};
+    let totalGlobalSubmissions = 0;
+    
+    for (const sa of allStudentAssignments) {
+      if (!sa.submissions || sa.submissions.length <= 1) continue;
+      
+      const sortedSubmissions = [...sa.submissions].sort((a, b) => a.moduleId - b.moduleId);
+      
+      for (let i = 1; i < sortedSubmissions.length; i++) {
+        const prevSubmission = sortedSubmissions[i-1];
+        const currSubmission = sortedSubmissions[i];
+        
+        const prevDate = new Date(prevSubmission.submittedAt);
+        const currDate = new Date(currSubmission.submittedAt);
+        const minutesTaken = (currDate - prevDate) / (1000 * 60);
+        
+        if (minutesTaken >= 1 && minutesTaken <= 180) {
+          const moduleKey = `${sa.assignment}-${currSubmission.moduleId}`;
+          
+          if (!globalModuleTimes[moduleKey]) {
+            globalModuleTimes[moduleKey] = { times: [], avg: 0 };
+          }
+          
+          globalModuleTimes[moduleKey].times.push(minutesTaken);
+          totalGlobalSubmissions++;
+        }
+      }
+    }
+    
+    // Calculate global averages
+    for (const key in globalModuleTimes) {
+      const times = globalModuleTimes[key].times;
+      if (times.length > 0) {
+        globalModuleTimes[key].avg = times.reduce((sum, time) => sum + time, 0) / times.length;
+      }
+    }
+    
+    // Calculate student's average compared to global average
+    const comparisonMetrics = [];
+    for (const completion of moduleCompletionTimes) {
+      const moduleKey = `${completion.assignmentId}-${completion.moduleId}`;
+      const globalAvg = globalModuleTimes[moduleKey]?.avg;
+      
+      if (globalAvg && globalAvg > 0) {
+        const percentDifference = ((completion.minutesTaken - globalAvg) / globalAvg) * 100;
+        comparisonMetrics.push({
+          ...completion,
+          globalAvgMinutes: Math.round(globalAvg * 10) / 10,
+          percentDifference: Math.round(percentDifference)
+        });
+      }
+    }
+    
+    // Get recent activity (last 5 submissions)
+    const recentActivity = studentAssignments
+      .flatMap(sa => sa.submissions || [])
+      .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+      .slice(0, 5);
+    
+    // Calculate learning trends over time (weekly progress)
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    // Create weekly buckets
+    const weeklyProgress = {};
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    
+    // Group submissions by week
+    for (const sa of studentAssignments) {
+      if (!sa.submissions) continue;
+      
+      for (const submission of sa.submissions) {
+        const submissionDate = new Date(submission.submittedAt);
+        if (submissionDate < sixMonthsAgo) continue;
+        
+        // Calculate week number relative to today
+        const weekNumber = Math.floor((now - submissionDate) / weekMs);
+        const weekLabel = weekNumber === 0 ? 'This week' : 
+                         weekNumber === 1 ? 'Last week' : 
+                         `${weekNumber} weeks ago`;
+        
+        if (!weeklyProgress[weekLabel]) {
+          weeklyProgress[weekLabel] = {
+            count: 0,
+            week: weekNumber,
+            modules: new Set()
+          };
+        }
+        
+        weeklyProgress[weekLabel].count++;
+        weeklyProgress[weekLabel].modules.add(`${sa.assignment._id}-${submission.moduleId}`);
+      }
+    }
+    
+    // Convert to array and sort by week number
+    const learningTrend = Object.entries(weeklyProgress)
+      .map(([label, data]) => ({
+        label,
+        submissionCount: data.count,
+        uniqueModulesCompleted: data.modules.size,
+        weekNumber: data.week
+      }))
+      .sort((a, b) => a.weekNumber - b.weekNumber);
+    
+    // Create analytics result object
+    const analyticsData = {
+      overview: {
+        totalAssignments: studentAssignments.length,
+        completedAssignments: studentAssignments.filter(sa => sa.status === 'completed').length,
+        inProgressAssignments: studentAssignments.filter(sa => sa.status === 'in-progress').length,
+        assignedAssignments: studentAssignments.filter(sa => sa.status === 'assigned').length
+      },
+      learningSpeed: {
+        moduleCompletionTimes,
+        assignmentAvgTimes,
+        comparisonToGlobalAvg: comparisonMetrics
+      },
+      progress: Object.values(assignmentProgress),
+      recentActivity,
+      learningTrend
+    };
+    
+    // Save to cache
+    const newCache = new AnalyticsCache({
+      userId: studentId,
+      role: 'student',
+      type: 'performance',
+      data: analyticsData
+    });
+    
+    await newCache.save();
+    
+    // Return the fresh analytics
+    res.status(200).json({
+      ...analyticsData,
+      generatedAt: new Date(),
+      isCached: false
+    });
+  } catch (error) {
+    console.error('Student analytics error:', error);
+    return handleError(error, res);
+  }
+});
+
+// Teacher Analytics with caching
+app.get('/api/analytics/teacher', authenticateToken, async (req, res) => {
+  try {
+    // Verify the user is a teacher
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ message: 'Access denied. Teacher role required.' });
+    }
+
+    const teacherId = req.user.id;
+    const shouldRefresh = req.query.refresh === 'true' || (req.body && req.body.refresh === true);
+    // Check for cached analytics if no refresh requested
+    if (!shouldRefresh) {
+      const cachedAnalytics = await AnalyticsCache.findOne({
+        userId: teacherId,
+        role: 'teacher',
+        type: 'dashboard'
+      }).sort({ generatedAt: -1 });
+      
+      if (cachedAnalytics) {
+        // Return cached data with timestamp
+        return res.status(200).json({
+          ...cachedAnalytics.data,
+          cachedAt: cachedAnalytics.generatedAt,
+          isCached: true
+        });
+      }
+    }
+    
+    // No cache found or refresh requested - generate new analytics
+    console.log(`Generating fresh analytics for teacher ${teacherId}`);
+    
+    // Get all classes taught by this teacher
+    const classes = await Class.find({ teacher: req.user.id });
+    const classIds = classes.map(c => c._id);
+    
+    // Find all batches in these classes
+    const batches = await Batch.find({ class: { $in: classIds } });
+    const totalBatches = batches.length;
+    
+    // Count unique students across all batches
+    const studentSets = new Set();
+    batches.forEach(batch => {
+      batch.students.forEach(studentId => {
+        studentSets.add(studentId.toString());
+      });
+    });
+    const totalStudents = studentSets.size;
+    
+    // Find all assignments for these classes
+    const assignments = await Assignment.find({ class: { $in: classIds } });
+    const assignmentIds = assignments.map(a => a._id);
+    
+    // Find all student assignments for these assignments
+    const studentAssignments = await StudentAssignment.find({
+      assignment: { $in: assignmentIds }
+    });
+    
+    // Count active assignments (ones that have beenstarted but not completed)
+    const activeAssignments = studentAssignments.filter(sa => sa.status === 'in-progress').length;
+    
+    // Count pending reviews (completed assignments)
+    const pendingReviews = studentAssignments.filter(sa => sa.status === 'completed').length;
+    
+    // Batch-level analytics
+    const batchAnalytics = {};
+    
+    // Student enrollment across batches
+    const studentEnrollmentMap = {};
+    
+    // Module completion analytics across all students
+    const moduleCompletionTimes = {};
+    
+    // Process all batches and their students
+    for (const batch of batches) {
+      const batchId = batch._id.toString();
+      batchAnalytics[batchId] = {
+        id: batchId,
+        name: batch.name,
+        className: batch.class.name,
+        classSubject: batch.class.subject,
+        studentCount: batch.students.length,
+        completionRates: {},
+        assignmentProgress: {},
+        avgCompletionTimes: {}
+      };
+      
+      // Track enrollment for each student
+      for (const studentId of batch.students) {
+        const sid = studentId.toString();
+        if (!studentEnrollmentMap[sid]) {
+          studentEnrollmentMap[sid] = [];
+        }
+        studentEnrollmentMap[sid].push(batchId);
+      }
+      
+      // Get assignments for this batch's class
+      const batchAssignments = assignments.filter(a => 
+        a.class.toString() === batch.class._id.toString()
+      );
+      
+      // Process assignment statistics for this batch
+      for (const assignment of batchAssignments) {
+        const assignmentId = assignment._id.toString();
+        
+        // Find student assignments for this assignment
+        const relevantStudentAssignments = studentAssignments.filter(sa => 
+          sa.assignment.toString() === assignmentId && 
+          batch.students.some(sid => sid.toString() === sa.student._id.toString())
+        );
+        
+        // Calculate completion rates
+        const totalStudents = batch.students.length;
+        const completedCount = relevantStudentAssignments.filter(sa => sa.status === 'completed').length;
+        const inProgressCount = relevantStudentAssignments.filter(sa => sa.status === 'in-progress').length;
+        
+        batchAnalytics[batchId].completionRates[assignmentId] = {
+          assignmentTitle: assignment.title,
+          completed: completedCount,
+          inProgress: inProgressCount,
+          notStarted: totalStudents - completedCount - inProgressCount,
+          completionPercentage: totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0
+        };
+        
+        // Calculate average progress
+        const avgProgress = relevantStudentAssignments.length > 0 
+          ? relevantStudentAssignments.reduce((sum, sa) => sum + sa.progress, 0) / relevantStudentAssignments.length 
+          : 0;
+        
+        batchAnalytics[batchId].assignmentProgress[assignmentId] = {
+          assignmentTitle: assignment.title,
+          averageProgress: Math.round(avgProgress),
+          studentCount: relevantStudentAssignments.length
+        };
+        
+        // Calculate completion times for modules
+        for (const sa of relevantStudentAssignments) {
+          if (!sa.submissions || sa.submissions.length <= 1) continue;
+          
+          const sortedSubmissions = [...sa.submissions].sort((a, b) => a.moduleId - b.moduleId);
+          
+          for (let i = 1; i < sortedSubmissions.length; i++) {
+            const prevSubmission = sortedSubmissions[i-1];
+            const currSubmission = sortedSubmissions[i];
+            
+            const prevDate = new Date(prevSubmission.submittedAt);
+            const currDate = new Date(currSubmission.submittedAt);
+            const minutesTaken = (currDate - prevDate) / (1000 * 60);
+            
+            // Only count reasonable times (between 1 minute and 3 hours)
+            if (minutesTaken >= 1 && minutesTaken <= 180) {
+              const moduleKey = `${assignmentId}-${currSubmission.moduleId}`;
+              
+              if (!moduleCompletionTimes[moduleKey]) {
+                moduleCompletionTimes[moduleKey] = {
+                  assignmentTitle: assignment.title,
+                  moduleId: currSubmission.moduleId,
+                  times: [],
+                  batches: {}
+                };
+              }
+              
+              moduleCompletionTimes[moduleKey].times.push(minutesTaken);
+              
+              // Track by batch too
+              if (!moduleCompletionTimes[moduleKey].batches[batchId]) {
+                moduleCompletionTimes[moduleKey].batches[batchId] = [];
+              }
+              moduleCompletionTimes[moduleKey].batches[batchId].push(minutesTaken);
+              
+              // Track in batch analytics
+              if (!batchAnalytics[batchId].avgCompletionTimes[moduleKey]) {
+                batchAnalytics[batchId].avgCompletionTimes[moduleKey] = {
+                  assignmentTitle: assignment.title,
+                  moduleId: currSubmission.moduleId,
+                  times: []
+                };
+              }
+              batchAnalytics[batchId].avgCompletionTimes[moduleKey].times.push(minutesTaken);
+            }
+          }
+        }
+      }
+    }
+    
+    // Calculate averages for module completion times
+    for (const key in moduleCompletionTimes) {
+      const moduleData = moduleCompletionTimes[key];
+      
+      if (moduleData.times.length > 0) {
+        moduleData.averageMinutes = moduleData.times.reduce((sum, time) => sum + time, 0) / moduleData.times.length;
+      }
+      
+      // Calculate batch averages
+      moduleData.batchAverages = {};
+      for (const batchId in moduleData.batches) {
+        const times = moduleData.batches[batchId];
+        if (times.length > 0) {
+          moduleData.batchAverages[batchId] = times.reduce((sum, time) => sum + time, 0) / times.length;
+          
+          // Update in batch analytics
+          if (batchAnalytics[batchId] && batchAnalytics[batchId].avgCompletionTimes[key]) {
+            const batchTimes = batchAnalytics[batchId].avgCompletionTimes[key].times;
+            batchAnalytics[batchId].avgCompletionTimes[key].average = 
+              batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length;
+          }
+        }
+      }
+    }
+    
+    // Find fastest learners (students with consistently quick module completion)
+    const studentSpeedMap = {};
+    
+    for (const sa of studentAssignments) {
+      if (!sa.submissions || sa.submissions.length <= 1) continue;
+      
+      const studentId = sa.student._id.toString();
+      const studentName = sa.student.username;
+      
+      if (!studentSpeedMap[studentId]) {
+        studentSpeedMap[studentId] = { 
+          id: studentId,
+          name: studentName,
+          moduleTimes: [],
+          classAssignments: {}
+        };
+      }
+      
+      const sortedSubmissions = [...sa.submissions].sort((a, b) => a.moduleId - b.moduleId);
+      
+      for (let i = 1; i < sortedSubmissions.length; i++) {
+        const prevSubmission = sortedSubmissions[i-1];
+        const currSubmission = sortedSubmissions[i];
+        
+        const prevDate = new Date(prevSubmission.submittedAt);
+        const currDate = new Date(currSubmission.submittedAt);
+        const minutesTaken = (currDate - prevDate) / (1000 * 60);
+        
+        // Only count reasonable times (between 1 minute and 3 hours)
+        if (minutesTaken >= 1 && minutesTaken <= 180) {
+          // Find which class this assignment belongs to
+          const assignment = assignments.find(a => a._id.toString() === sa.assignment.toString());
+          if (assignment) {
+            const classId = assignment.class.toString();
+            
+            if (!studentSpeedMap[studentId].classAssignments[classId]) {
+              studentSpeedMap[studentId].classAssignments[classId] = [];
+            }
+            
+            studentSpeedMap[studentId].moduleTimes.push(minutesTaken);
+            studentSpeedMap[studentId].classAssignments[classId].push(minutesTaken);
+          }
+        }
+      }
+    }
+    
+    // Calculate average speed for each student
+    const studentLeaderboards = {};
+    
+    for (const studentId in studentSpeedMap) {
+      const student = studentSpeedMap[studentId];
+      
+      // Calculate overall average
+      if (student.moduleTimes.length > 1) {
+        student.averageTimeMinutes = student.moduleTimes.reduce((sum, time) => sum + time, 0) / student.moduleTimes.length;
+      }
+      
+      // Calculate class-specific averages
+      for (const classId in student.classAssignments) {
+        const times = student.classAssignments[classId];
+        
+        if (times.length > 1) {
+          if (!studentLeaderboards[classId]) {
+            studentLeaderboards[classId] = [];
+          }
+          
+          const classAvg = times.reduce((sum, time) => sum + time, 0) / times.length;
+          
+          studentLeaderboards[classId].push({
+            studentId,
+            name: student.name,
+            averageTimeMinutes: classAvg,
+            modulesCompleted: times.length
+          });
+        }
+      }
+    }
+    
+    // Sort leaderboards
+    for (const classId in studentLeaderboards) {
+      studentLeaderboards[classId].sort((a, b) => a.averageTimeMinutes - b.averageTimeMinutes);
+      
+      // Add rank
+      studentLeaderboards[classId] = studentLeaderboards[classId].map((student, index) => ({
+        ...student,
+        rank: index + 1
+      }));
+    }
+    
+    // Calculate batch comparison metrics
+    const batchComparison = [];
+    for (const batch of batches) {
+      const batchId = batch._id.toString();
+      const analytics = batchAnalytics[batchId];
+      
+      // Calculate completion metrics
+      let totalCompletionRate = 0;
+      let rateCount = 0;
+      
+      for (const assignmentId in analytics.completionRates) {
+        totalCompletionRate += analytics.completionRates[assignmentId].completionPercentage;
+        rateCount++;
+      }
+      
+      // Calculate speed metrics
+      let totalModuleTime = 0;
+      let timeCount = 0;
+      
+      for (const moduleKey in analytics.avgCompletionTimes) {
+        if (analytics.avgCompletionTimes[moduleKey].average) {
+          totalModuleTime += analytics.avgCompletionTimes[moduleKey].average;
+          timeCount++;
+        }
+      }
+      
+      // Add to comparison
+      batchComparison.push({
+        batchId,
+        batchName: batch.name,
+        className: batch.class.name,
+        studentCount: batch.students.length,
+        avgCompletionRate: rateCount > 0 ? totalCompletionRate / rateCount : 0,
+        avgModuleTimeMinutes: timeCount > 0 ? totalModuleTime / timeCount : 0
+      });
+    }
+    
+    // Return comprehensive teacher analytics
+    res.status(200).json({
+      overview: {
+        totalClasses: classes.length,
+        totalBatches: batches.length,
+        totalAssignments: assignments.length,
+        totalStudents: Object.keys(studentEnrollmentMap).length
+      },
+      batchAnalytics: Object.values(batchAnalytics),
+      moduleAnalytics: moduleCompletionTimes,
+      studentLeaderboards,
+      batchComparison
+    });
+  } catch (error) {
+    console.error('Teacher analytics error:', error);
+    return handleError(error, res);
+  }
+});
+
+// Admin Analytics with caching
+app.get('/api/analytics/admin', authenticateToken, async (req, res) => {
+  try {
+    // Verify user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin role required.' });
+    }
+    
+    const adminId = req.user.id;
+    const shouldRefresh = req.query.refresh === 'true' || (req.body && req.body.refresh === true);
+    // Check for cached analytics if no refresh requested
+    if (!shouldRefresh) {
+      const cachedAnalytics = await AnalyticsCache.findOne({
+        userId: adminId,
+        role: 'admin',
+        type: 'platform'
+      }).sort({ generatedAt: -1 });
+      
+      if (cachedAnalytics && (new Date() - cachedAnalytics.generatedAt) < (24 * 60 * 60 * 1000)) {
+        // Use cache if it's less than 24 hours old
+        return res.status(200).json({
+          ...cachedAnalytics.data,
+          cachedAt: cachedAnalytics.generatedAt,
+          isCached: true
+        });
+      }
+    }
+    
+    // No cache found or refresh requested - generate new analytics
+    console.log(`Generating fresh analytics for admin ${adminId}`);
+    
+    // Get total number of students
+    const totalStudents = await User.countDocuments({ role: 'student' });
+    
+    // Get total number of teachers
+    const totalTeachers = await User.countDocuments({ role: 'teacher' });
+    
+    // Get total number of classes
+    const totalClasses = await Class.countDocuments();
+    
+    // Get total number of batches
+    const totalBatches = await Batch.countDocuments();
+    
+    // Get total number of assignments
+    const totalAssignments = await Assignment.countDocuments();
+    
+    // Get registrations in the last 30 days
+    const dateFrom = new Date();
+    dateFrom.setDate(dateFrom.getDate() - 30);
+    
+    const recentRegistrations = await User.find({
+      createdAt: { $gte: dateFrom }
+    }).select('role createdAt');
+    
+    // Count by role
+    const registrationsByRole = recentRegistrations.reduce((acc, user) => {
+      acc[user.role] = (acc[user.role] || 0) + 1;
+      return acc;
+    }, {});
+    
+    // Monthly growth for the last 6 months
+    const monthlyGrowth = [];
+    const currentDate = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date();
+      month.setMonth(currentDate.getMonth() - i);
+      month.setDate(1);
+      
+      const nextMonth = new Date(month);
+      nextMonth.setMonth(month.getMonth() + 1);
+      
+      const studentCount = await User.countDocuments({
+        role: 'student',
+        createdAt: { $gte: month, $lt: nextMonth }
+      });
+      
+      const teacherCount = await User.countDocuments({
+        role: 'teacher',
+        createdAt: { $gte: month, $lt: nextMonth }
+      });
+      
+      monthlyGrowth.push({
+        month: month.toLocaleString('default', { month: 'long', year: 'numeric' }),
+        studentCount,
+        teacherCount
+      });
+    }
+    
+    // Submission activity in the last 30 days
+    const dateFromActivity = new Date();
+    dateFromActivity.setDate(dateFromActivity.getDate() - 30);
+    
+    const submissionActivity = await StudentAssignment.find({
+      createdAt: { $gte: dateFromActivity }
+    }).populate('assignment', 'title').populate('student', 'username');
+    
+    // Subject-wise metrics
+    const subjectMetrics = {};
+    
+    // Get all classes with their subjects
+    const classes = await Class.find().populate('teacher', 'username');
+    
+    // For each class, get the assignments and their average completion time
+    for (const classItem of classes) {
+      const assignments = await Assignment.find({ class: classItem._id });
+      const assignmentIds = assignments.map(a => a._id);
+      
+      // Get all student assignments for these assignments
+      const studentAssignments = await StudentAssignment.find({
+        assignment: { $in: assignmentIds }
+      });
+      
+      // Calculate average completion time for each assignment
+      for (const assignment of assignments) {
+        const relevantStudentAssignments = studentAssignments.filter(sa => 
+          sa.assignment.toString() === assignment._id.toString()
+        );
+        
+        if (relevantStudentAssignments.length > 0) {
+          const avgTime = relevantStudentAssignments.reduce((sum, sa) => sum + sa.progress, 0) / relevantStudentAssignments.length;
+          subjectMetrics[classItem.subject] = subjectMetrics[classItem.subject] || { total: 0, count: 0 };
+          subjectMetrics[classItem.subject].total += avgTime;
+          subjectMetrics[classItem.subject].count += relevantStudentAssignments.length;
+        }
+      }
+    }
+    
+    // Calculate overall average for each subject
+    for (const subject in subjectMetrics) {
+      subjectMetrics[subject].average = subjectMetrics[subject].total / subjectMetrics[subject].count;
+    }
+    
+    // Teacher performance based on student count and assignment completion
+    const teacherPerformance = await User.aggregate([
+      { $match: { role: 'teacher' } },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: '_id',
+          foreignField: 'teacher',
+          as: 'classes'
+        }
+      },
+      {
+        $lookup: {
+          from: 'batches',
+          localField: 'classes._id',
+          foreignField: 'class',
+          as: 'batches'
+        }
+      },
+      {
+        $lookup: {
+          from: 'studentassignments',
+          localField: 'batches.students',
+          foreignField: 'student',
+          as: 'studentAssignments'
+        }
+      },
+      {
+        $group: {
+          _id: '$_id',
+          username: { $first: '$username' },
+          totalStudents: { $sum: { $size: '$batches.students' } },
+          totalAssignments: { $sum: { $size: '$studentAssignments' } }
+        }
+      }
+    ]);
+    
+    // Create analytics result object
+    const analyticsData = {
+      overview: {
+        totalStudents,
+        totalTeachers,
+        totalClasses,
+        totalBatches,
+        totalAssignments,
+        recentRegistrations: registrationsByRole
+      },
+      growth: {
+        monthlyGrowth
+      },
+      engagement: {
+        recentActivity: submissionActivity,
+        subjectMetrics
+      },
+      teacherPerformance: teacherPerformance.sort((a, b) => b.studentCount - a.studentCount)
+    };
+    
+    // Save to cache
+    const newCache = new AnalyticsCache({
+      userId: adminId,
+      role: 'admin',
+      type: 'platform',
+      data: analyticsData
+    });
+    
+    await newCache.save();
+    
+    // Return the fresh analytics
+    res.status(200).json({
+      ...analyticsData,
+      generatedAt: new Date(),
+      isCached: false
+    });
+  } catch (error) {
+    console.error('Admin analytics error:', error);
+    return handleError(error, res);
+  }
+});
+
+// Clear analytics cache (admin only)
+app.delete('/api/analytics/cache', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can clear all cache
+    if (req.user.role !== 'admin' && !req.query.userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // If userId specified, verify it's the current user or admin
+    if (req.query.userId && req.query.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    const filter = {};
+    
+    // Filter by user if specified
+    if (req.query.userId) {
+      filter.userId = req.query.userId;
+    }
+    
+    // Filter by role if specified
+    if (req.query.role && ['student', 'teacher', 'admin'].includes(req.query.role)) {
+      filter.role = req.query.role;
+    }
+    
+    // Filter by type if specified
+    if (req.query.type) {
+      filter.type = req.query.type;
+    }
+    
+    const result = await AnalyticsCache.deleteMany(filter);
+    
+    res.status(200).json({
+      message: 'Analytics cache cleared successfully',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Clear cache error:', error);
+    return handleError(error, res);
+  }
+});
+
+// Welcome route
 app.get('/', (req, res) => {
   res.send('Welcome to the User API');
 });
+
 // Server setup
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

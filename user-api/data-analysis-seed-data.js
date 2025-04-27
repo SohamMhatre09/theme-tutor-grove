@@ -196,6 +196,62 @@ class ApiClient {
       throw error;
     }
   }
+  
+  async getAnalytics(role, refresh = false, userEmail) {
+    try {
+      const token = this.tokens[userEmail];
+      if (!token) throw new Error(`User ${userEmail} not logged in`);
+      
+      let endpoint;
+      if (role === 'teacher') {
+        endpoint = `/analytics/teacher`;
+      } else if (role === 'student') {
+        endpoint = `/analytics/student`;
+      } else if (role === 'admin') {
+        endpoint = `/analytics/admin`;
+      } else {
+        throw new Error(`Invalid role for analytics: ${role}`);
+      }
+      
+      // Add refresh parameter if true
+      const queryParams = refresh ? '?refresh=true' : '';
+      
+      const response = await axios.get(
+        `${this.baseUrl}${endpoint}${queryParams}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Analytics fetch error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+  
+  async clearAnalyticsCache(userEmail, options = {}) {
+    try {
+      const token = this.tokens[userEmail];
+      if (!token) throw new Error(`User ${userEmail} not logged in`);
+      
+      // Build query parameters
+      const queryParams = [];
+      if (options.userId) queryParams.push(`userId=${options.userId}`);
+      if (options.role) queryParams.push(`role=${options.role}`);
+      if (options.type) queryParams.push(`type=${options.type}`);
+      
+      const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+      
+      const response = await axios.delete(
+        `${this.baseUrl}/analytics/cache${queryString}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      return response.data;
+    } catch (error) {
+      console.error('Cache clear error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
 }
 
 // Seed data function
@@ -431,6 +487,58 @@ async function seedData() {
     
     console.log(`Created ${totalSubmissions} module submissions`);
     
+    // Now generate analytics data by making API calls for different user roles
+    console.log('\nGenerating analytics data...');
+    
+    // First for teachers
+    console.log('Generating teacher analytics...');
+    for (const teacher of teachers) {
+      // First fetch without refresh (should create initial cache)
+      await apiClient.getAnalytics('teacher', false, teacher.email);
+      console.log(`Created analytics cache for teacher ${teacher.username}`);
+      
+      // Then fetch with refresh to update the cache
+      await apiClient.getAnalytics('teacher', true, teacher.email);
+      console.log(`Updated analytics data for teacher ${teacher.username}`);
+      
+      await delay(500);
+    }
+    
+    // For a sample of students (first 10)
+    console.log('Generating student analytics...');
+    for (let i = 0; i < Math.min(10, students.length); i++) {
+      const student = students[i];
+      
+      // First without refresh
+      await apiClient.getAnalytics('student', false, student.email);
+      console.log(`Created analytics cache for student ${student.username}`);
+      
+      // Then with refresh
+      await apiClient.getAnalytics('student', true, student.email);
+      console.log(`Updated analytics data for student ${student.username}`);
+      
+      await delay(500);
+    }
+    
+    // Test clearing cache for one student
+    if (students.length > 0) {
+      console.log(`Testing cache clearing for student ${students[0].username}...`);
+      const clearResult = await apiClient.clearAnalyticsCache(students[0].email, {
+        userId: students[0].id,
+        role: 'student'
+      });
+      console.log('Cache cleared:', clearResult);
+      
+      // Regenerate the cache
+      await apiClient.getAnalytics('student', true, students[0].email);
+      console.log(`Regenerated analytics data for student ${students[0].username}`);
+    }
+    
+    // For admin (if we need to test admin analytics, we'd need to create an admin user first)
+    // Since your current code doesn't create admin users, we'll skip this part
+    
+    console.log('Analytics data generation completed');
+    
     console.log('Database seeded successfully through API!');
     console.log(`
     Summary:
@@ -440,6 +548,7 @@ async function seedData() {
     - ${batches.length} batches
     - ${assignments.length} assignments
     - ${totalSubmissions} module submissions
+    - Analytics data generated for ${teachers.length} teachers and 10 students
     `);
     
   } catch (error) {
