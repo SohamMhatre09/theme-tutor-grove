@@ -4,18 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
-import { motion, useScroll, useTransform } from "framer-motion";
-import Particles from "react-tsparticles"; // Add this import
-import { loadFull } from "tsparticles"; // Make sure this import is here
+import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { 
   Code, 
-  BookOpen, 
-  Sparkles, 
-  CheckCircle2, 
   ArrowRight, 
-  Laptop, 
-  GraduationCap, 
-  Users,
+  ArrowDown,
+  Menu,
+  X,
+  Plus,
+  Minus,
+  Check,
   LogOut,
   LayoutDashboard
 } from "lucide-react";
@@ -28,1019 +26,822 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import CountUp from 'react-countup';
-
-
-const particlesInit = async (engine) => {
-  try {
-    // Use the correct init method based on tsparticles version
-    await loadFull(engine);
-  } catch (error) {
-    console.error("Error initializing particles:", error);
-  }
-};
 
 export default function Landing() {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [activePricingTab, setActivePricingTab] = useState("monthly");
+  const [activeSection, setActiveSection] = useState("hero");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    // Stay on the landing page after logout
   };
 
-  // Add scrollY hook inside component
+  // Scroll animations
   const { scrollYProgress } = useScroll();
+  const opacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.1], [1, 0.98]);
   const yPosAnimation = useTransform(scrollYProgress, [0, 1], [0, 500]);
 
+  // Track active section on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = document.querySelectorAll('section[id]');
+      
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        const sectionHeight = section.offsetHeight;
+        const sectionId = section.getAttribute('id') || "";
+        
+        if (window.scrollY >= sectionTop && window.scrollY < sectionTop + sectionHeight) {
+          setActiveSection(sectionId);
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Animation variants
+  const fadeIn = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+    exit: { opacity: 0, y: -20, transition: { duration: 0.3 } }
+  };
+  
+  const stagger = {
+    animate: { 
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const letterAnimation = {
+    initial: { y: 20, opacity: 0 },
+    animate: { y: 0, opacity: 1, transition: { duration: 0.5 } }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Sticky header with animated gradient */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Code className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">CodeLearn</span>
+    <div className="min-h-screen bg-background overflow-hidden selection:bg-yellow-300 selection:text-black">
+      {/* Minimal header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md">
+        <div className="container mx-auto px-6 py-6 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 relative z-10">
+            <Code className="h-6 w-6" />
+            <span className="font-bold tracking-tighter text-xl">CodeLearn</span>
           </Link>
           
-          <div className="flex items-center gap-6">
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#features" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                Features
-              </a>
-              <a href="#pricing" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                Pricing
-              </a>
-              <a href="#testimonials" className="text-sm font-medium text-muted-foreground animate-hover hover:text-foreground">
-                Testimonials
-              </a>
-            </nav>
-            <Separator orientation="vertical" className="h-6 hidden md:block" />
-            <ThemeToggle />
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-12">
+            <a 
+              href="#features" 
+              className={`text-sm font-medium tracking-wide hover:text-yellow-400 transition-colors duration-300 ${activeSection === 'features' ? 'text-yellow-400' : 'text-foreground'}`}
+            >
+              Features
+            </a>
+            <a 
+              href="#methodology" 
+              className={`text-sm font-medium tracking-wide hover:text-yellow-400 transition-colors duration-300 ${activeSection === 'methodology' ? 'text-yellow-400' : 'text-foreground'}`}
+            >
+              Methodology
+            </a>
+            <a 
+              href="#pricing" 
+              className={`text-sm font-medium tracking-wide hover:text-yellow-400 transition-colors duration-300 ${activeSection === 'pricing' ? 'text-yellow-400' : 'text-foreground'}`}
+            >
+              Pricing
+            </a>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              <Separator orientation="vertical" className="h-5" />
+              <ThemeToggle />
+              
               {isAuthenticated ? (
-                <>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/dashboard">
-                      <LayoutDashboard className="h-4 w-4 mr-2" />
-                      Dashboard
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleLogout}>
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </Button>
-                </>
+                <Button variant="outline" size="sm" onClick={handleLogout} className="rounded-none px-4">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span>Logout</span>
+                </Button>
               ) : (
-                <>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/login">Sign In</Link>
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link to="/register">Sign Up</Link>
-                  </Button>
-                </>
+                <Button variant="default" size="sm" asChild className="rounded-none px-6">
+                  <Link to="/login">Sign In</Link>
+                </Button>
               )}
             </div>
-          </div>
+          </nav>
+          
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden text-foreground p-1 focus:outline-none"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
+        
+        {/* Mobile Navigation */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "100vh", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="fixed inset-0 top-[72px] bg-background z-40 flex flex-col overflow-hidden md:hidden"
+            >
+              <div className="container mx-auto px-6 py-10 flex flex-col h-full">
+                <motion.div 
+                  className="flex flex-col space-y-10 text-4xl font-light"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={stagger}
+                >
+                  <motion.a 
+                    href="#features" 
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:text-yellow-400 transition-colors" 
+                    variants={fadeIn}
+                  >
+                    Features
+                  </motion.a>
+                  <motion.a 
+                    href="#methodology" 
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:text-yellow-400 transition-colors" 
+                    variants={fadeIn}
+                  >
+                    Methodology
+                  </motion.a>
+                  <motion.a 
+                    href="#pricing" 
+                    onClick={() => setMenuOpen(false)}
+                    className="hover:text-yellow-400 transition-colors" 
+                    variants={fadeIn}
+                  >
+                    Pricing
+                  </motion.a>
+                </motion.div>
+                
+                <div className="mt-auto pt-10 border-t border-border">
+                  {isAuthenticated ? (
+                    <div className="flex flex-col gap-4">
+                      <Button variant="outline" asChild className="w-full rounded-none">
+                        <Link to="/dashboard" onClick={() => setMenuOpen(false)}>
+                          <LayoutDashboard className="h-4 w-4 mr-2" /> Dashboard
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" onClick={() => { handleLogout(); setMenuOpen(false); }} className="rounded-none">
+                        <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      <Button asChild className="w-full">
+                        <Link to="/login" onClick={() => setMenuOpen(false)}>Sign In</Link>
+                      </Button>
+                      <Button variant="outline" asChild className="w-full rounded-none">
+                        <Link to="/register" onClick={() => setMenuOpen(false)}>Register</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main className="flex-1">
-        {/* Hero section with immersive video background and particles */}
-        <section className="py-24 md:py-32 relative overflow-hidden min-h-[100vh] flex items-center">
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <video 
-              autoPlay 
-              muted 
-              loop 
-              className="absolute w-full h-full object-cover"
-              style={{ filter: 'brightness(0.3)' }}
-            >
-              <source src="/videos/code-background.mp4" type="video/mp4" />
-            </video>
-            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/30 to-background/90">
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-radial animate-pulse-slow opacity-20"></div>
-            </div>
-          </div>
+      <main className="pt-24">
+        {/* Hero section */}
+        <section id="hero" className="min-h-[90vh] flex items-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
           
-          {/* Floating animated code elements */}
-          <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+          <div className="container mx-auto px-6 py-20 relative">
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.3 }}
-              transition={{ duration: 1 }}
-              className="absolute inset-0"
+              className="max-w-4xl"
+              initial="initial"
+              animate="animate"
+              variants={stagger}
             >
-              {/* Create a simple dot pattern animation */}
-              {Array.from({ length: 50 }).map((_, index) => (
-                <motion.div
-                  key={index}
-                  className="absolute h-1 w-1 rounded-full bg-white/30"
-                  initial={{ 
-                    x: `${Math.random() * 100}%`, 
-                    y: `${Math.random() * 100}%` 
-                  }}
-                  animate={{ 
-                    x: [
-                      `${Math.random() * 100}%`, 
-                      `${Math.random() * 100}%`
-                    ],
-                    y: [
-                      `${Math.random() * 100}%`, 
-                      `${Math.random() * 100}%`
-                    ],
-                  }}
-                  transition={{
-                    duration: Math.random() * 10 + 10,
-                    repeat: Infinity,
-                    repeatType: "reverse",
-                    ease: "linear"
-                  }}
-                />
-              ))}
-            </motion.div>
-          </div>
-          
-          <div className="container relative z-20">
-            <motion.div 
-              className="flex flex-col items-center text-center max-w-3xl mx-auto"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
-              >
-                <Badge variant="outline" className="mb-4 px-3 py-1 text-sm bg-primary/20 border-primary/30 backdrop-blur-sm animate-pulse-subtle">
-                  <motion.span
-                    animate={{ opacity: [1, 0.5, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    🚀
-                  </motion.span>
-                  <span className="ml-2">Just Launched - New AI-Powered Features</span>
+              <motion.div variants={fadeIn} className="mb-6">
+                <Badge className="px-4 py-2 bg-yellow-400 text-black text-xs font-medium rounded-none uppercase tracking-widest">
+                  New Platform Launch
                 </Badge>
               </motion.div>
               
-              <motion.h1 
-                className="text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary bg-size-200 animate-gradient-x"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.7 }}
+              <motion.h1
+                className="text-6xl md:text-8xl font-bold tracking-tighter mb-8"
+                variants={stagger}
               >
-                <motion.span 
-                  className="inline-block"
-                  whileHover={{ 
-                    scale: 1.05, 
-                    color: "#ffffff", 
-                    transition: { duration: 0.2 } 
-                  }}
-                >
-                  Master
-                </motion.span>{" "}
-                <motion.span 
-                  className="inline-block"
-                  whileHover={{ 
-                    scale: 1.05, 
-                    color: "#ffffff", 
-                    transition: { duration: 0.2 } 
-                  }}
-                >
-                  Coding
-                </motion.span>{" "}
-                <motion.span 
-                  className="inline-block"
-                  whileHover={{ 
-                    scale: 1.05, 
-                    color: "#ffffff", 
-                    transition: { duration: 0.2 } 
-                  }}
-                >
-                  Skills
-                </motion.span>
+                {["Master", "the", "art", "of", "code"].map((word, i) => (
+                  <motion.span
+                    key={i}
+                    className="inline-block mr-4 relative"
+                    variants={letterAnimation}
+                    custom={i}
+                  >
+                    {i === 0 ? <span className="text-yellow-400">{word}</span> : word}
+                    {i === 0 && (
+                      <motion.div
+                        className="absolute -bottom-2 left-0 right-0 h-1 bg-yellow-400"
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ delay: 0.8, duration: 0.5 }}
+                      />
+                    )}
+                  </motion.span>
+                ))}
               </motion.h1>
               
-              <motion.p 
-                className="text-xl text-muted-foreground mb-8 max-w-2xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7, duration: 0.7 }}
+              <motion.p
+                variants={fadeIn}
+                className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-12"
               >
-                A modern platform for learning programming through hands-on practice, AI-guided feedback, and real-world projects.
+                A brutally simple approach to programming education. 
+                No fluff, no nonsense. Just pure, focused knowledge.
               </motion.p>
               
-              <motion.div 
-                className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9, duration: 0.5 }}
-              >
+              <motion.div variants={fadeIn} className="flex flex-col sm:flex-row gap-5">
                 {isAuthenticated ? (
-                  <Button size="lg" className="gap-2 px-8 bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300" asChild>
+                  <Button size="lg" className="rounded-none px-10 py-6 text-base font-medium bg-yellow-400 text-black hover:bg-yellow-500" asChild>
                     <Link to="/dashboard">
-                      <motion.div
-                        className="flex items-center gap-2"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        Go to Dashboard 
-                        <motion.div
-                          animate={{ x: [0, 5, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <LayoutDashboard className="h-4 w-4" />
-                        </motion.div>
-                      </motion.div>
+                      <span>Go to dashboard</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 ) : (
-                  <Button size="lg" className="gap-2 px-8 bg-gradient-to-r from-primary to-accent hover:shadow-glow transition-all duration-300" asChild>
+                  <Button size="lg" className="rounded-none px-10 py-6 text-base font-medium bg-yellow-400 text-black hover:bg-yellow-500" asChild>
                     <Link to="/register">
-                      <motion.div
-                        className="flex items-center gap-2"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        Get Started 
-                        <motion.div
-                          animate={{ x: [0, 5, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        >
-                          <ArrowRight className="h-4 w-4" />
-                        </motion.div>
-                      </motion.div>
+                      <span>Start learning</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                 )}
-                <Button size="lg" variant="outline" className="gap-2 backdrop-blur-sm bg-background/30 hover:bg-background/50 transition-all duration-300 border-primary/30 hover:border-primary">
-                  <motion.div 
-                    className="flex items-center gap-2"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <BookOpen className="h-4 w-4" />
-                    View Curriculum
-                  </motion.div>
+                
+                <Button size="lg" variant="outline" className="rounded-none px-10 py-6 text-base font-normal">
+                  <span>Explore courses</span>
                 </Button>
               </motion.div>
-              
-              {/* Animated stats counters */}
-              <motion.div 
-                className="mt-16 grid grid-cols-3 gap-4 w-full"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1.2, duration: 0.7 }}
-              >
-                <motion.div 
-                  className="bg-background/10 backdrop-blur-md p-4 rounded-lg border border-primary/20 flex flex-col items-center hover:border-primary/50 transition-all duration-300"
-                  whileHover={{ 
-                    y: -10, 
-                    backgroundColor: "rgba(var(--primary), 0.2)",
-                    transition: { duration: 0.2 }
-                  }}
-                >
-                  <motion.h3 
-                    className="text-4xl font-bold text-primary"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.4, duration: 0.5 }}
-                  >
-                    <CountUp end={100} suffix="+" duration={2.5} />
-                  </motion.h3>
-                  <p className="text-sm">Interactive Courses</p>
-                </motion.div>
-                
-                <motion.div 
-                  className="bg-background/10 backdrop-blur-md p-4 rounded-lg border border-primary/20 flex flex-col items-center hover:border-primary/50 transition-all duration-300"
-                  whileHover={{ 
-                    y: -10, 
-                    backgroundColor: "rgba(var(--primary), 0.2)",
-                    transition: { duration: 0.2 }
-                  }}
-                >
-                  <motion.h3 
-                    className="text-4xl font-bold text-primary"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.6, duration: 0.5 }}
-                  >
-                    <CountUp end={10} suffix="k+" duration={2} />
-                  </motion.h3>
-                  <p className="text-sm">Active Students</p>
-                </motion.div>
-                
-                <motion.div 
-                  className="bg-background/10 backdrop-blur-md p-4 rounded-lg border border-primary/20 flex flex-col items-center hover:border-primary/50 transition-all duration-300"
-                  whileHover={{ 
-                    y: -10, 
-                    backgroundColor: "rgba(var(--primary), 0.2)",
-                    transition: { duration: 0.2 }
-                  }}
-                >
-                  <motion.h3 
-                    className="text-4xl font-bold text-primary"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.8, duration: 0.5 }}
-                  >
-                    <CountUp end={98} suffix="%" duration={3} />
-                  </motion.h3>
-                  <p className="text-sm">Success Rate</p>
-                </motion.div>
-              </motion.div>
-            </motion.div>
-          </div>
-          
-          {/* Floating code snippets */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <motion.div
-              className="absolute text-primary/10 font-mono text-sm"
-              initial={{ opacity: 0, x: -100, y: 100 }}
-              animate={{ opacity: 0.4, x: 0, y: 0 }}
-              transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
-              style={{ top: '30%', left: '10%' }}
-            >
-              {`function learnToCode() {`}<br/>
-              {`  const skills = [];`}<br/>
-              {`  while(motivation) {`}<br/>
-              {`    skills.push(newSkill);`}<br/>
-              {`    practice++;`}<br/>
-              {`  }`}<br/>
-              {`  return success;`}<br/>
-              {`}`}
             </motion.div>
             
-            <motion.div
-              className="absolute text-primary/10 font-mono text-sm"
-              initial={{ opacity: 0, x: 100, y: -100 }}
-              animate={{ opacity: 0.4, x: 0, y: 0 }}
-              transition={{ duration: 15, repeat: Infinity, repeatType: "reverse" }}
-              style={{ top: '20%', right: '10%' }}
-            >
-              {`const future = {`}<br/>
-              {`  career: "developer",`}<br/>
-              {`  skills: ["react", "node", "python"],`}<br/>
-              {`  opportunities: "unlimited"`}<br/>
-              {`};`}
-            </motion.div>
+            <div className="hidden md:block absolute -bottom-10 -right-10 w-96 h-96">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 1 }}
+                className="w-full h-full relative"
+              >
+                <motion.div 
+                  className="absolute top-0 left-0 w-40 h-40 border border-yellow-400"
+                  animate={{ 
+                    rotate: [0, 5, 0, -5, 0],
+                    scale: [1, 1.01, 1, 0.99, 1] 
+                  }}
+                  transition={{ repeat: Infinity, duration: 10, ease: "easeInOut" }}
+                />
+                <motion.div 
+                  className="absolute bottom-0 right-0 w-60 h-60 border border-border"
+                  animate={{ 
+                    rotate: [0, -5, 0, 5, 0],
+                    scale: [1, 0.99, 1, 1.01, 1] 
+                  }}
+                  transition={{ repeat: Infinity, duration: 12, ease: "easeInOut" }}
+                />
+              </motion.div>
+            </div>
           </div>
           
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent"></div>
+          {/* Scroll indicator */}
+          <motion.div 
+            className="absolute bottom-10 left-0 right-0 flex justify-center"
+            animate={{ y: [0, 10, 0] }} 
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            <ArrowDown className="h-5 w-5 text-muted-foreground" />
+          </motion.div>
+        </section>
+
+        {/* Counter stats - minimal design */}
+        <section className="py-24 bg-muted/10">
+          <div className="container mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              {[
+                { number: '100+', text: 'Interactive Courses' },
+                { number: '10k+', text: 'Active Students' },
+                { number: '98%', text: 'Success Rate' }
+              ].map((stat, index) => (
+                <motion.div 
+                  key={index}
+                  className="flex flex-col items-center text-center"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7, delay: index * 0.2 }}
+                >
+                  <span className="text-5xl md:text-6xl font-bold text-yellow-400 mb-2">
+                    <CountUp end={parseInt(stat.number) || 100} suffix={stat.number.includes('+') ? '+' : ''} duration={2.5} />
+                  </span>
+                  <span className="text-lg text-muted-foreground">{stat.text}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </section>
 
         {/* Features section */}
-        <section id="features" className="py-24 bg-muted/50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10"></div>
-          
-          {/* Floating animated elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <motion.div 
-              className="absolute w-64 h-64 rounded-full bg-primary/10 blur-3xl"
-              animate={{ 
-                x: [0, 100, 0], 
-                y: [0, 50, 0],
-              }}
-              transition={{ 
-                repeat: Infinity, 
-                duration: 20,
-                ease: "easeInOut" 
-              }}
-              style={{ top: '20%', left: '10%' }}
-            />
-            <motion.div 
-              className="absolute w-96 h-96 rounded-full bg-accent/10 blur-3xl"
-              animate={{ 
-                x: [0, -70, 0], 
-                y: [0, 100, 0],
-              }}
-              transition={{ 
-                repeat: Infinity, 
-                duration: 25,
-                ease: "easeInOut" 
-              }}
-              style={{ top: '50%', right: '5%' }}
-            />
-          </div>
-          
-          <div className="container relative">
-            <motion.div 
-              className="text-center mb-16"
+        <section id="features" className="py-32 relative">
+          <div className="container mx-auto px-6">
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <h2 className="text-3xl font-bold mb-4">Why Choose CodeLearn</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Our platform combines interactive learning, real-time feedback, and industry-relevant projects to help you master coding skills.
-              </p>
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Features</span>
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-16">
+                Brutally simple.<br />Remarkably effective.
+              </h2>
             </motion.div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              >
-                <Card className="bg-card border-primary/10 hover:border-primary/30 transition-all h-full">
-                  <CardHeader>
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: 0.3 }}
-                    >
-                      <Laptop className="h-10 w-10 text-primary mb-4" />
-                    </motion.div>
-                    <CardTitle>Interactive Learning</CardTitle>
-                    <CardDescription>
-                      Practice coding directly in your browser with our integrated editor.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Live code execution</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Real-time feedback</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Step-by-step instructions</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              >
-                <Card className="bg-card border-primary/10 hover:border-primary/30 transition-all h-full">
-                  <CardHeader>
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: 0.3 }}
-                    >
-                      <Sparkles className="h-10 w-10 text-primary mb-4" />
-                    </motion.div>
-                    <CardTitle>AI-Powered Assistance</CardTitle>
-                    <CardDescription>
-                      Get personalized help when you're stuck on a problem.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Smart code hints</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Personalized learning path</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Performance analysis</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                whileHover={{ y: -10, transition: { duration: 0.2 } }}
-              >
-                <Card className="bg-card border-primary/10 hover:border-primary/30 transition-all h-full">
-                  <CardHeader>
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      whileInView={{ scale: 1, opacity: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: 0.3 }}
-                    >
-                      <GraduationCap className="h-10 w-10 text-primary mb-4" />
-                    </motion.div>
-                    <CardTitle>Structured Curriculum</CardTitle>
-                    <CardDescription>
-                      Follow a carefully designed path from beginner to expert.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Industry-aligned projects</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Progress tracking</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span>Skill certifications</span>
-                      </li>
-                    </ul>
-                  </CardContent>
-                </Card>
-              </motion.div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-20">
+              {[
+                {
+                  title: "Interactive Learning",
+                  description: "Practice coding directly in your browser with our integrated editor. No setup required, just start coding."
+                },
+                {
+                  title: "AI-Powered Assistance",
+                  description: "Personalized guidance and hints when you need them. Our AI adapts to your learning style."
+                },
+                {
+                  title: "Structured Curriculum",
+                  description: "A carefully designed learning path that builds skills systematically from fundamentals to advanced concepts."
+                },
+                {
+                  title: "Real-time Feedback",
+                  description: "Immediate assessment of your code with specific suggestions for improvement."
+                }
+              ].map((feature, index) => (
+                <motion.div 
+                  key={index}
+                  className="relative"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <div className="mb-6">
+                    <span className="text-6xl font-light text-yellow-400/20">
+                      {index + 1}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
+                  <p className="text-muted-foreground">{feature.description}</p>
+                </motion.div>
+              ))}
             </div>
+          </div>
+        </section>
+
+        {/* Methodology section with full-width image */}
+        <section id="methodology" className="py-32 relative bg-black text-white">
+          <div className="absolute inset-0 opacity-20">
+            <div className="h-full w-full bg-gradient-to-b from-black to-transparent" />
+          </div>
+          
+          <div className="container mx-auto px-6 relative">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-16 items-center">
+              <div className="md:col-span-5">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7 }}
+                >
+                  <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Methodology</span>
+                  <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
+                    The Art & Science of Coding
+                  </h2>
+                  <p className="text-lg text-gray-300 mb-8">
+                    Our methodology is built on expertise and intuition, combining established learning 
+                    science with innovative approaches to make coding accessible to everyone.
+                  </p>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="rounded-none text-white border-white hover:text-yellow-400 hover:border-yellow-400 group"
+                  >
+                    Learn about our method
+                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </motion.div>
+              </div>
+              
+              <div className="md:col-span-7">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.7, delay: 0.3 }}
+                >
+                  <Accordion type="single" collapsible className="border-t border-white/20">
+                    {[
+                      {
+                        title: "Learning Through Practice",
+                        content: "Hands-on coding exercises and projects with real-time feedback and execution. Learning by doing is at the core of our teaching philosophy."
+                      },
+                      {
+                        title: "Personalized AI Guidance",
+                        content: "Tailored learning experiences with our AI that adapts to your specific needs, strengths, and weaknesses."
+                      },
+                      {
+                        title: "Project-Based Curriculum",
+                        content: "Build real applications with industry-standard tools and workflows that prepare you for professional software development."
+                      }
+                    ].map((item, index) => (
+                      <AccordionItem key={index} value={`item-${index}`} className="border-b border-white/20">
+                        <AccordionTrigger className="text-xl font-medium py-6 hover:text-yellow-400 transition-colors">
+                          {item.title}
+                        </AccordionTrigger>
+                        <AccordionContent className="text-gray-300 pb-6">
+                          {item.content}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </motion.div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonial - clean, minimalist */}
+        <section className="py-32 relative overflow-hidden">
+          <div className="container mx-auto px-6">
+            <motion.div
+              className="max-w-3xl mx-auto text-center"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+            >
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Testimonials</span>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-12">
+                What our students say
+              </h2>
+              
+              <blockquote className="text-2xl md:text-3xl font-light leading-relaxed mb-10">
+                "CodeLearn's brutally simple approach helped me transition from a non-technical role to a 
+                full-stack developer position in just 6 months. Their focused curriculum eliminates all
+                unnecessary complexity."
+              </blockquote>
+              
+              <div className="flex items-center justify-center">
+                <div className="h-12 w-12 bg-yellow-400 flex items-center justify-center rounded-full text-black font-semibold mr-4">
+                  JD
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Jane Doe</p>
+                  <p className="text-muted-foreground">Software Engineer at TechCorp</p>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </section>
 
         {/* Pricing section */}
-        <section id="pricing" className="py-24 relative overflow-hidden">
-          <div className="absolute inset-0 bg-dot-pattern opacity-5"></div>
-          
-          <div className="container relative">
-            <motion.div 
+        <section id="pricing" className="py-32 bg-muted/10 relative">
+          <div className="container mx-auto px-6">
+            <motion.div
               className="text-center mb-16"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <h2 className="text-3xl font-bold mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Choose the plan that's right for you and start your coding journey today.
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Pricing</span>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
+                Simple, transparent pricing
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Choose the plan that works for you. All plans include access to our learning platform.
               </p>
-              
-              <motion.div 
-                className="flex justify-center mt-8"
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <Tabs 
-                  value={activePricingTab} 
-                  onValueChange={setActivePricingTab}
-                  className="w-full max-w-xs"
-                >
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                    <TabsTrigger value="annual">
-                      Annual
-                      <Badge variant="secondary" className="ml-2 bg-primary/20 hover:bg-primary/20">
-                        Save 20%
-                      </Badge>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </motion.div>
             </motion.div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {/* Free plan */}
-              <Card className="border-primary/10 hover:border-primary/30 transition-all">
-                <CardHeader>
-                  <CardTitle>Free</CardTitle>
-                  <CardDescription>For beginners exploring coding</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold">₹ 0</span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>10 basic assignments</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Limited progress tracking</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Community support</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  {isAuthenticated ? (
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link to="/dashboard">Go to Dashboard</Link>
-                    </Button>
-                  ) : (
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link to="/register">Sign Up for Free</Link>
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+              >
+                <Card className="rounded-none border border-border h-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Free</CardTitle>
+                    <CardDescription>For beginners exploring coding</CardDescription>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">₹ 0</span>
+                      <span className="text-muted-foreground">/month</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-4">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>10 basic assignments</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Limited progress tracking</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Community support</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                  <CardFooter>
+                    {isAuthenticated ? (
+                      <Button variant="outline" className="w-full rounded-none" asChild>
+                        <Link to="/dashboard">Go to Dashboard</Link>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="w-full rounded-none" asChild>
+                        <Link to="/register">Sign Up for Free</Link>
+                      </Button>
+                    )}
+                  </CardFooter>
+                </Card>
+              </motion.div>
               
               {/* Pro plan */}
-              <Card className="border-primary relative overflow-hidden shadow-lg">
-                <div className="absolute top-0 right-0 -mt-2 -mr-2">
-                  <Badge className="bg-primary">Most Popular</Badge>
-                </div>
-                <CardHeader>
-                  <CardTitle>Pro</CardTitle>
-                  <CardDescription>For serious learners</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold">
-                      ₹ {activePricingTab === "monthly" ? "199" : "159"}
-                    </span>
-                    <span className="text-muted-foreground">/month</span>
-                    {activePricingTab === "annual" && (
-                      <span className="text-xs ml-2 text-primary">Billed annually</span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>100+ premium assignments</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Full progress tracking</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>AI-powered assistance</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Email support</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  {isAuthenticated ? (
-                    <Button className="w-full" asChild>
-                      <Link to="/dashboard">Access Pro Features</Link>
-                    </Button>
-                  ) : (
-                    <Button className="w-full" asChild>
-                      <Link to="/register">Get Started</Link>
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-              
-              {/* Enterprise plan */}
-              <Card className="border-primary/10 hover:border-primary/30 transition-all">
-                <CardHeader>
-                  <CardTitle>Enterprise</CardTitle>
-                  <CardDescription>For teams and organizations</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-3xl font-bold">
-                      ₹ {activePricingTab === "monthly" ? "99" : "79"}
-                    </span>
-                    <span className="text-muted-foreground">/month</span>
-                    {activePricingTab === "annual" && (
-                      <span className="text-xs ml-2 text-primary">Billed annually</span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>All Pro features</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Team management</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Custom assignments</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span>Priority support</span>
-                    </li>
-                  </ul>
-                </CardContent>
-                <CardFooter>
-                  <Button variant="outline" className="w-full">
-                    Contact Sales
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials section with floating cards */}
-        <section id="testimonials" className="py-24 bg-muted/50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-          
-          <div className="container relative">
-            <motion.div 
-              className="text-center mb-16"
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-            >
-              <h2 className="text-3xl font-bold mb-4">What Our Students Say</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Join thousands of learners who have transformed their careers with CodeLearn.
-              </p>
-            </motion.div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5 }}
-                whileHover={{ 
-                  y: -10,
-                  rotate: [-1, 1, 0],
-                  transition: { duration: 0.3 }
-                }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
               >
-                <Card className="bg-card border-primary/10 h-full relative overflow-hidden">
-                  <motion.div
-                    className="absolute -left-10 -bottom-10 w-20 h-20 rounded-full bg-primary/10 blur-xl"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      repeatType: "reverse"
-                    }}
-                  />
-                  <CardContent className="pt-6">
-                    <motion.div 
-                      className="flex items-center gap-2 mb-2"
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      {[1, 2, 3, 4, 5].map((star, index) => (
-                        <motion.div
-                          key={star}
-                          initial={{ opacity: 0, scale: 0 }}
-                          whileInView={{ opacity: 1, scale: 1 }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.2, delay: index * 0.1 }}
-                        >
-                          <Sparkles className="h-4 w-4 fill-primary text-primary" />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                    <p className="italic mb-6">
-                      "CodeLearn helped me transition from a non-technical role to a full-stack developer in just 6 months. The interactive lessons made a huge difference!"
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <motion.div 
-                        className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium"
-                        whileHover={{ 
-                          scale: 1.1, 
-                          backgroundColor: "rgba(var(--primary), 0.3)" 
-                        }}
-                      >
-                        JD
-                      </motion.div>
-                      <div>
-                        <p className="font-medium">John Doe</p>
-                        <p className="text-sm text-muted-foreground">Software Engineer @ Tech Co</p>
-                      </div>
+                <Card className="rounded-none border-2 border-yellow-400 relative h-full">
+                  <div className="absolute top-0 right-0 -mt-2 -mr-2">
+                    <Badge className="bg-yellow-400 text-black rounded-none px-3 py-1">Popular</Badge>
+                  </div>
+                  <CardHeader>
+                    <CardTitle className="text-xl">Pro</CardTitle>
+                    <CardDescription>For serious learners</CardDescription>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">
+                        ₹ {activePricingTab === "monthly" ? "199" : "159"}
+                      </span>
+                      <span className="text-muted-foreground">/month</span>
+                      {activePricingTab === "annual" && (
+                        <span className="text-xs ml-2 text-yellow-400">Billed annually</span>
+                      )}
                     </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-4">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>100+ premium assignments</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Full progress tracking</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>AI-powered assistance</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Email support</span>
+                      </li>
+                    </ul>
                   </CardContent>
+                  <CardFooter>
+                    {isAuthenticated ? (
+                      <Button className="w-full rounded-none bg-yellow-400 text-black hover:bg-yellow-500" asChild>
+                        <Link to="/dashboard">Access Pro Features</Link>
+                      </Button>
+                    ) : (
+                      <Button className="w-full rounded-none bg-yellow-400 text-black hover:bg-yellow-500" asChild>
+                        <Link to="/register">Get Started</Link>
+                      </Button>
+                    )}
+                  </CardFooter>
                 </Card>
               </motion.div>
               
-              {/* Add similar animations to other testimonials */}
+              {/* Enterprise plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+              >
+                <Card className="rounded-none border border-border h-full">
+                  <CardHeader>
+                    <CardTitle className="text-xl">Enterprise</CardTitle>
+                    <CardDescription>For teams and organizations</CardDescription>
+                    <div className="mt-4">
+                      <span className="text-3xl font-bold">
+                        ₹ {activePricingTab === "monthly" ? "99" : "79"}
+                      </span>
+                      <span className="text-muted-foreground">/user/month</span>
+                      {activePricingTab === "annual" && (
+                        <span className="text-xs ml-2 text-yellow-400">Billed annually</span>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-4">
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>All Pro features</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Team management</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Custom assignments</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="h-5 w-5 text-yellow-400 shrink-0" />
+                        <span>Priority support</span>
+                      </li>
+                    </ul>
+                  </CardContent>
+                  <CardFooter>
+                    <Button variant="outline" className="w-full rounded-none">
+                      Contact Sales
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </motion.div>
             </div>
           </div>
         </section>
 
         {/* CTA section */}
-        <section className="py-24 relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/5"></div>
-          <div className="container relative">
-            <div className="max-w-3xl mx-auto text-center">
-              <Badge variant="outline" className="mb-4 px-3 py-1 text-sm bg-primary/10 border-primary/20">
-                Join 10,000+ developers
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                Ready to start your coding journey?
-              </h2>
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                Get started today with our free plan or choose a premium option to unlock all features.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {isAuthenticated ? (
-                  <Button size="lg" className="gap-2 px-8" asChild>
-                    <Link to="/dashboard">
-                      Go to Dashboard <LayoutDashboard className="h-4 w-4" />
-                    </Link>
+        <section className="py-32 bg-black text-white relative overflow-hidden">
+          <motion.div
+            className="absolute top-20 right-20 w-40 h-40 border border-yellow-400"
+            animate={{ 
+              rotate: [0, 90, 180, 270, 360],
+              opacity: [0.2, 0.5, 0.2],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              duration: 20, 
+              repeat: Infinity,
+              ease: "linear" 
+            }}
+          />
+          
+          <div className="container mx-auto px-6 relative">
+            <div className="max-w-3xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.7 }}
+                className="text-center"
+              >
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8">
+                  Ready to master<br />the art of coding?
+                </h2>
+                <p className="text-xl text-gray-300 mb-12">
+                  Start your journey today with our brutally simple approach to coding education.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row justify-center gap-5">
+                  {isAuthenticated ? (
+                    <Button size="lg" className="rounded-none px-10 py-6 text-base font-medium bg-yellow-400 text-black hover:bg-yellow-500" asChild>
+                      <Link to="/dashboard">
+                        <span>Go to dashboard</span>
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button size="lg" className="rounded-none px-10 py-6 text-base font-medium bg-yellow-400 text-black hover:bg-yellow-500" asChild>
+                      <Link to="/register">
+                        <span>Start for free</span>
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="rounded-none px-10 py-6 text-base font-normal border-white text-white hover:bg-white/10"
+                  >
+                    <span>View pricing</span>
                   </Button>
-                ) : (
-                  <Button size="lg" className="gap-2 px-8" asChild>
-                    <Link to="/register">
-                      Start for Free <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                )}
-                <Button size="lg" variant="outline" className="gap-2" asChild>
-                  <a href="#pricing">
-                    View Pricing
-                  </a>
-                </Button>
-              </div>
-              
-              <div className="mt-16 flex items-center justify-center gap-8 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">10,000+ Active Users</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">30-Day Money Back</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium">Regular Updates</span>
-                </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-10 bg-muted/30">
-        <div className="container">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Code className="h-6 w-6 text-primary" />
-                <span className="font-semibold text-lg">CodeLearn</span>
+      {/* Footer - minimalist */}
+      <footer className="py-16 border-t border-border">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+            <div className="md:col-span-4">
+              <div className="flex items-center gap-2 mb-6">
+                <Code className="h-5 w-5" />
+                <span className="font-bold">CodeLearn</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                The modern platform for learning programming through interactive lessons.
+              <p className="text-muted-foreground max-w-xs">
+                A brutally simple approach to coding education, crafted with attention to detail.
               </p>
             </div>
             
-            <div>
-              <h3 className="font-medium mb-4">Product</h3>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Enterprise
-                  </a>
-                </li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium mb-4">Resources</h3>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Community
-                  </a>
-                </li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-medium mb-4">Company</h3>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Careers
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    Contact
-                  </a>
-                </li>
-              </ul>
+            <div className="md:col-span-8 md:col-start-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+                <div>
+                  <h3 className="text-sm font-medium mb-4">Resources</h3>
+                  <ul className="space-y-3">
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Documentation</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Tutorials</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Blog</a></li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-4">Company</h3>
+                  <ul className="space-y-3">
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">About</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Careers</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Contact</a></li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-4">Legal</h3>
+                  <ul className="space-y-3">
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Terms</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Privacy</a></li>
+                    <li><a href="#" className="text-sm text-muted-foreground hover:text-yellow-400 transition-colors">Cookies</a></li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-muted-foreground">
+          <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-sm text-muted-foreground mb-4 md:mb-0">
               &copy; {new Date().getFullYear()} CodeLearn. All rights reserved.
-            </div>
+            </p>
+            
             <div className="flex items-center gap-6">
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Terms
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <span className="sr-only">Twitter</span>
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.093 4.093 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path>
+                </svg>
               </a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Privacy
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <span className="sr-only">GitHub</span>
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"></path>
+                </svg>
               </a>
-              <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Cookies
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <span className="sr-only">LinkedIn</span>
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fillRule="evenodd" d="M4.98 3.5c0 1.381-1.11 2.5-2.48 2.5s-2.48-1.119-2.48-2.5c0-1.38 1.11-2.5 2.48-2.5s2.48 1.12 2.48 2.5zm.02 4.5h-5v16h5v-16zm7.982 0h-4.968v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0v8.399h4.988v-10.131c0-7.88-8.922-7.593-11.018-3.714v-2.155z" clipRule="evenodd"></path>
+                </svg>
               </a>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* Add a CSS class for grid pattern in your global CSS */}
+      {/* Custom styles for M&C Saatchi inspired aesthetic */}
       <style jsx>{`
         .bg-grid-pattern {
-          background-size: 40px 40px;
+          background-size: 30px 30px;
           background-image: 
-            linear-gradient(to right, rgba(var(--primary), 0.1) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(var(--primary), 0.1) 1px, transparent 1px);
-        }
-        
-        .animate-pulse-subtle {
-          animation: pulse-subtle 2s infinite;
-        }
-        
-        @keyframes pulse-subtle {
-          0% {
-            box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
-          }
-          70% {
-            box-shadow: 0 0 0 10px rgba(var(--primary), 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(var(--primary), 0);
-          }
-        }
-        
-        .animate-hover {
-          transition: all 0.3s ease;
-        }
-        
-        .animate-hover:hover {
-          transform: translateY(-2px);
-        }
-        
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes float {
-          0% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-20px);
-          }
-          100% {
-            transform: translateY(0px);
-          }
+            linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
         }
       `}</style>
     </div>
