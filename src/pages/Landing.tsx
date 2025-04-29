@@ -122,7 +122,7 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-hidden selection:bg-yellow-300 selection:text-black">
+    <div className="min-h-screen bg-background overflow-hidden selection:bg-yellow-300 selection:text-black font-sans">
       {/* Loading Experience */}
       <LoadingExperience onComplete={() => setIsLoading(false)} />
       
@@ -280,8 +280,7 @@ export default function Landing() {
               </motion.div>
               
               <motion.h1
-                className="text-6xl md:text-8xl font-bold tracking-tighter mb-8"
-                variants={stagger}
+                className="text-6xl md:text-8xl font-bold tracking-tighter mb-8 font-display leading-tight"
               >
                 {["Master", "the", "art", "of", "code"].map((word, i) => (
                   <motion.span
@@ -305,7 +304,7 @@ export default function Landing() {
               
               <motion.p
                 variants={fadeIn}
-                className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-12"
+                className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-12 font-light"
               >
                 A brutally simple approach to programming education. 
                 No fluff, no nonsense. Just pure, focused knowledge.
@@ -391,10 +390,10 @@ export default function Landing() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.7, delay: index * 0.2 }}
                 >
-                  <span className="text-5xl md:text-6xl font-bold text-yellow-400 mb-2">
+                  <span className="text-5xl md:text-6xl font-bold text-yellow-400 mb-2 font-mono">
                     <CountUp end={parseInt(stat.number) || 100} suffix={stat.number.includes('+') ? '+' : ''} duration={2.5} />
                   </span>
-                  <span className="text-lg text-muted-foreground">{stat.text}</span>
+                  <span className="text-lg text-muted-foreground font-light">{stat.text}</span>
                 </motion.div>
               ))}
             </div>
@@ -412,8 +411,8 @@ export default function Landing() {
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Features</span>
-              <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-16">
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block font-medium">Features</span>
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-16 font-display">
                 Brutally simple.<br />Remarkably effective.
               </h2>
             </motion.div>
@@ -446,12 +445,12 @@ export default function Landing() {
                   transition={{ duration: 0.5, delay: index * 0.1 }}
                 >
                   <div className="mb-6">
-                    <span className="text-6xl font-light text-yellow-400/20">
+                    <span className="text-6xl font-light text-yellow-400/20 font-mono">
                       {index + 1}
                     </span>
                   </div>
-                  <h3 className="text-2xl font-bold mb-4">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
+                  <h3 className="text-2xl font-bold mb-4 font-display">{feature.title}</h3>
+                  <p className="text-muted-foreground font-light">{feature.description}</p>
                 </motion.div>
               ))}
             </div>
@@ -468,11 +467,11 @@ export default function Landing() {
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Comparison</span>
-              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block font-medium">Comparison</span>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6 font-display">
                 How do we compare?
               </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-light">
                 See why our approach outperforms traditional learning methods.
               </p>
             </motion.div>
@@ -497,11 +496,11 @@ export default function Landing() {
                   transition={{ duration: 0.7 }}
                   style={{ y: methodologyTextY }}
                 >
-                  <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Methodology</span>
-                  <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
+                  <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block font-medium">Methodology</span>
+                  <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6 font-display">
                     The Art & Science of Coding
                   </h2>
-                  <p className="text-lg text-gray-300 mb-8">
+                  <p className="text-lg text-gray-300 mb-8 font-light">
                     Our methodology is built on expertise and intuition, combining established learning 
                     science with innovative approaches to make coding accessible to everyone.
                   </p>
@@ -509,7 +508,7 @@ export default function Landing() {
                   <Button 
                     variant="outline" 
                     size="lg" 
-                    className="rounded-none text-white border-white hover:text-yellow-400 hover:border-yellow-400 group"
+                    className="rounded-none text-white border-white hover:text-yellow-400 hover:border-yellow-400 group font-medium"
                   >
                     Learn about our method
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -540,10 +539,10 @@ export default function Landing() {
                       }
                     ].map((item, index) => (
                       <AccordionItem key={index} value={`item-${index}`} className="border-b border-white/20">
-                        <AccordionTrigger className="text-xl font-medium py-6 hover:text-yellow-400 transition-colors">
+                        <AccordionTrigger className="text-xl font-medium py-6 hover:text-yellow-400 transition-colors font-display">
                           {item.title}
                         </AccordionTrigger>
-                        <AccordionContent className="text-gray-300 pb-6">
+                        <AccordionContent className="text-gray-300 pb-6 font-light">
                           {item.content}
                         </AccordionContent>
                       </AccordionItem>
@@ -818,10 +817,10 @@ export default function Landing() {
                 transition={{ duration: 0.7 }}
                 className="text-center"
               >
-                <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8">
+                <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-8 font-display">
                   Ready to master<br />the art of coding?
                 </h2>
-                <p className="text-xl text-gray-300 mb-12">
+                <p className="text-xl text-gray-300 mb-12 font-light">
                   Start your journey today with our brutally simple approach to coding education.
                 </p>
                 
@@ -931,13 +930,32 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* Custom styles for M&C Saatchi inspired aesthetic */}
+      {/* Custom styles for typography and aesthetics */}
       <style jsx>{`
         .bg-grid-pattern {
           background-size: 30px 30px;
           background-image: 
             linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+
+        /* Font family definitions */
+        .font-display {
+          font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+          letter-spacing: -0.03em;
+        }
+
+        .font-mono {
+          font-family: 'SF Mono', 'Roboto Mono', monospace;
+        }
+
+        .font-sans {
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Add font weight variations */
+        .font-light {
+          font-weight: 300;
         }
       `}</style>
     </div>
