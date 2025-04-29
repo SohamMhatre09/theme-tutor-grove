@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,26 @@ import {
 import { Badge } from "@/components/ui/badge";
 import CountUp from 'react-countup';
 
+// Import new components
+import { LoadingExperience } from "@/components/LoadingExperience";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { TrustedByMarquee } from "@/components/TrustedByMarquee";
+import { AnimatedTestimonial } from "@/components/AnimatedTestimonial";
+import { ComparisonGrid } from "@/components/ComparisonGrid";
+import { AnimatedRectangles } from "@/components/AnimatedRectangles";
+
 export default function Landing() {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [activePricingTab, setActivePricingTab] = useState("monthly");
   const [activeSection, setActiveSection] = useState("hero");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Refs for parallax sections
+  const heroRef = useRef<HTMLDivElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const methodologyRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     await logout();
@@ -50,7 +64,25 @@ export default function Landing() {
   const opacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.1], [1, 0.98]);
   const yPosAnimation = useTransform(scrollYProgress, [0, 1], [0, 500]);
+  
+  // Parallax effect for hero section
+  const { scrollY } = useScroll();
+  const heroY = useTransform(scrollY, [0, 1000], [0, 300]);
+  const featuresY = useTransform(scrollY, [300, 1300], [0, 150]);
+  const methodologyTextY = useTransform(scrollY, [1000, 2000], [0, 100]);
 
+  // Prevent scroll during loading
+  useEffect(() => {
+    if (isLoading) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isLoading]);
+  
   // Track active section on scroll
   useEffect(() => {
     const handleScroll = () => {
@@ -91,6 +123,15 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden selection:bg-yellow-300 selection:text-black">
+      {/* Loading Experience */}
+      <LoadingExperience onComplete={() => setIsLoading(false)} />
+      
+      {/* Animated Background */}
+      <AnimatedBackground />
+      
+      {/* Animated Rectangles */}
+      <AnimatedRectangles />
+      
       {/* Minimal header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-md">
         <div className="container mx-auto px-6 py-6 flex items-center justify-between">
@@ -219,16 +260,17 @@ export default function Landing() {
         </AnimatePresence>
       </header>
 
-      <main className="pt-24">
-        {/* Hero section */}
-        <section id="hero" className="min-h-[90vh] flex items-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+      <main className={`pt-24 ${isLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-1000'}`}>
+        {/* Hero section with parallax */}
+        <section id="hero" className="min-h-[90vh] flex items-center relative overflow-hidden" ref={heroRef}>
+          <motion.div style={{ y: heroY }} className="absolute inset-0 bg-grid-pattern opacity-5"></motion.div>
           
           <div className="container mx-auto px-6 py-20 relative">
             <motion.div
               className="max-w-4xl"
               initial="initial"
-              animate="animate"
+              whileInView="animate"
+              viewport={{ once: true }}
               variants={stagger}
             >
               <motion.div variants={fadeIn} className="mb-6">
@@ -329,6 +371,9 @@ export default function Landing() {
           </motion.div>
         </section>
 
+        {/* Trusted By Marquee */}
+        <TrustedByMarquee />
+
         {/* Counter stats - minimal design */}
         <section className="py-24 bg-muted/10">
           <div className="container mx-auto px-6">
@@ -356,8 +401,10 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Features section */}
-        <section id="features" className="py-32 relative">
+        {/* Features section with parallax */}
+        <section id="features" className="py-32 relative" ref={featuresRef}>
+          <motion.div style={{ y: featuresY }} className="absolute inset-0 bg-grid-pattern opacity-5"></motion.div>
+          
           <div className="container mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -411,8 +458,31 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Methodology section with full-width image */}
-        <section id="methodology" className="py-32 relative bg-black text-white">
+        {/* Comparison section */}
+        <section className="py-32 bg-muted/40 relative">
+          <div className="container mx-auto px-6">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+            >
+              <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Comparison</span>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
+                How do we compare?
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                See why our approach outperforms traditional learning methods.
+              </p>
+            </motion.div>
+            
+            <ComparisonGrid />
+          </div>
+        </section>
+
+        {/* Methodology section with parallax text */}
+        <section id="methodology" className="py-32 relative bg-black text-white" ref={methodologyRef}>
           <div className="absolute inset-0 opacity-20">
             <div className="h-full w-full bg-gradient-to-b from-black to-transparent" />
           </div>
@@ -425,6 +495,7 @@ export default function Landing() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.7 }}
+                  style={{ y: methodologyTextY }}
                 >
                   <span className="text-sm uppercase tracking-widest text-yellow-400 mb-2 block">Methodology</span>
                   <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">
@@ -484,11 +555,11 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Testimonial - clean, minimalist */}
+        {/* Enhanced Testimonials section */}
         <section className="py-32 relative overflow-hidden">
           <div className="container mx-auto px-6">
             <motion.div
-              className="max-w-3xl mx-auto text-center"
+              className="text-center mb-16"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -498,23 +569,34 @@ export default function Landing() {
               <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-12">
                 What our students say
               </h2>
-              
-              <blockquote className="text-2xl md:text-3xl font-light leading-relaxed mb-10">
-                "CodeLearn's brutally simple approach helped me transition from a non-technical role to a 
-                full-stack developer position in just 6 months. Their focused curriculum eliminates all
-                unnecessary complexity."
-              </blockquote>
-              
-              <div className="flex items-center justify-center">
-                <div className="h-12 w-12 bg-yellow-400 flex items-center justify-center rounded-full text-black font-semibold mr-4">
-                  JD
-                </div>
-                <div className="text-left">
-                  <p className="font-medium">Jane Doe</p>
-                  <p className="text-muted-foreground">Software Engineer at TechCorp</p>
-                </div>
-              </div>
             </motion.div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <AnimatedTestimonial 
+                quote="CodeLearn's brutally simple approach helped me transition from a non-technical role to a full-stack developer position in just 6 months."
+                name="Jane Doe"
+                title="Software Engineer"
+                company="TechCorp"
+                imageSrc="https://i.pravatar.cc/100?img=1"
+                delay={0}
+              />
+              <AnimatedTestimonial 
+                quote="The focused curriculum eliminates all unnecessary complexity. I learned more in 3 months than I did in a year of self-study."
+                name="John Smith"
+                title="Frontend Developer"
+                company="WebSolutions"
+                imageSrc="https://i.pravatar.cc/100?img=2"
+                delay={1}
+              />
+              <AnimatedTestimonial 
+                quote="The AI assistance is like having a personal tutor available 24/7. It adapts to how I learn and challenges me appropriately."
+                name="Alex Johnson"
+                title="Backend Engineer"
+                company="DataTech"
+                imageSrc="https://i.pravatar.cc/100?img=3"
+                delay={2}
+              />
+            </div>
           </div>
         </section>
 
@@ -708,6 +790,20 @@ export default function Landing() {
             }}
             transition={{ 
               duration: 20, 
+              repeat: Infinity,
+              ease: "linear" 
+            }}
+          />
+          
+          <motion.div
+            className="absolute bottom-20 left-20 w-20 h-20 border border-yellow-400"
+            animate={{ 
+              rotate: [360, 270, 180, 90, 0],
+              opacity: [0.2, 0.4, 0.2],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ 
+              duration: 15, 
               repeat: Infinity,
               ease: "linear" 
             }}
