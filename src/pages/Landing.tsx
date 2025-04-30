@@ -42,6 +42,9 @@ import { AnimatedTestimonial } from "@/components/AnimatedTestimonial";
 import { ComparisonGrid } from "@/components/ComparisonGrid";
 import { AnimatedRectangles } from "@/components/AnimatedRectangles";
 
+// Keep the import unchanged
+import { ScrollRevealText } from "@/components/ScrollRevealText";
+
 export default function Landing() {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
@@ -456,6 +459,24 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        {/* Text Reveal Section */}
+        {/* Text Reveal Section */}
+        {/* Text Reveal Section */}
+<section className="py-32 bg-muted/20">
+  <div className="container mx-auto px-6">
+    <ScrollRevealText 
+      lines={[
+        "Code is more than syntax;",
+        "it's the language of innovation.",
+        "With every function you write,",
+        "you're building tomorrow's world,",
+        "one elegant solution at a time."
+      ]}
+      className="max-w-4xl mx-auto"
+    />
+  </div>
+</section>
 
         {/* Comparison section */}
         <section className="py-32 bg-muted/40 relative">
